@@ -84,6 +84,12 @@ def _call(image_bytes: bytes, mime: str, temperature: float, retries: int = 4) -
                 time.sleep(5 * 2 ** attempt)
                 continue
             raise
+        except (TimeoutError, urllib.error.URLError, ConnectionError):
+            # network hiccup or Gemini too slow: wait and retry
+            if attempt < retries - 1:
+                time.sleep(5 * 2 ** attempt)
+                continue
+            raise
         except (json.JSONDecodeError, KeyError, IndexError):
             if attempt < retries - 1:
                 continue

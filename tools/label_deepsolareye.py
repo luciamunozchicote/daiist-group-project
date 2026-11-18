@@ -110,9 +110,9 @@ def main() -> None:
         for i, row in enumerate(todo, 1):
             try:
                 answer = vision.describe(str(Path(args.images).expanduser() / row["file"]), n_votes=1)
-            except urllib.error.HTTPError as error:
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
                 failures_in_a_row += 1
-                print(f"  {row['file']}: HTTP {error.code}")
+                print(f"  {row['file']}: {getattr(error, 'code', None) or type(error).__name__}")
                 if failures_in_a_row >= 5:
                     print("5 failures in a row: probably the daily limit. Run again later; done photos are kept.")
                     break
