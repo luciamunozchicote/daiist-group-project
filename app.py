@@ -20,8 +20,8 @@ import pipeline
 env.load_env()
 LOG_TARGET = logbook.start()
 
-TITLE = "Your product's name"  # TODO
-DESCRIPTION = "One sentence: who it is for and what it does."  # TODO
+TITLE = "Solar Triage"
+DESCRIPTION = "For maintenance managers of solar plants: upload a photo of a panel and get what is wrong (dirt, shade, damage), the estimated power loss and what to do."  # TODO (team): final wording
 
 
 def serve(raw_input: str) -> dict:
@@ -35,13 +35,14 @@ def serve(raw_input: str) -> dict:
 
 def on_run(raw_input):
     if raw_input is None or not str(raw_input).strip():
-        raise gr.Error("Give me an input first.")
+        raise gr.Error("Upload a photo of a solar panel first.")
     record = serve(raw_input)
     outputs = record["outputs"]
     status = "⚠️ **Sent to a person for review.**" if record["review"] else "✅ Handled automatically."
     return (
-        outputs["component_a"],
-        outputs["component_b"]["reply"],
+        outputs["component_1"],
+        outputs["component_2"],
+        f"### {outputs['decision']}",
         f"{status}  Latency {record['latency_s']} s, cost €{record['cost_eur']:.4f}.",
         record["id"],
     )
@@ -81,17 +82,17 @@ with gr.Blocks(title=TITLE) as demo:
 
     with gr.Tab("App"):
         request_id = gr.State("")
-        # TODO: your input. For images: gr.Image(type="filepath"); for files: gr.File(type="filepath").
-        raw_input = gr.Textbox(label="Customer message", lines=4)
+        raw_input = gr.Image(type="filepath", label="Photo of the solar panel")
         run_button = gr.Button("Run", variant="primary")
+        decision = gr.Markdown()
         with gr.Row():
-            out_a = gr.JSON(label="Component A")
-            out_b = gr.Textbox(label="Component B", lines=4)
+            out_a = gr.JSON(label="Component 1 · vision (Gemini)")
+            out_b = gr.JSON(label="Component 2 · estimated power loss")
         status = gr.Markdown()
         with gr.Row():
             up = gr.Button("👍")
             down = gr.Button("👎")
-        run_button.click(on_run, raw_input, [out_a, out_b, status, request_id], api_name="run")
+        run_button.click(on_run, raw_input, [out_a, out_b, decision, status, request_id], api_name="run")
         up.click(lambda rid: on_feedback(rid, +1), request_id, None, api_name=False)
         down.click(lambda rid: on_feedback(rid, -1), request_id, None, api_name=False)
 

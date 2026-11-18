@@ -1,11 +1,13 @@
 """
-Your product's logic: the two components and how one feeds the other.
+Solar Triage: the two components and how one feeds the other.
 
-Everything here is a PLACEHOLDER so the template runs end to end without any
-key: component A is a keyword "classifier" and component B a canned "writer".
-Replace both with your real components (or import them from your own modules)
-but keep what `run()` returns, because app.py, evaluate.py, main.py and
-check.py all read it:
+    photo ──► component 1 (vision, Gemini) ──► component 2 (tabular, % power loss) ──► € / decision
+
+Component 1 is real (vision.py). Component 2 is still a PLACEHOLDER: a fixed
+rule, not a model, until the team trains the regression on DeepSolarEye
+(tools/label_deepsolareye.py prepares its training data).
+
+`run()` must keep returning the dict app.py, evaluate.py, main.py and check.py read:
 
     run(raw_input) -> {
         "input_summary": str,          # short, no personal data: it is logged
@@ -17,75 +19,112 @@ check.py all read it:
         "cost_eur": float,             # cost of this request in euros
     }
 
-`raw_input` is what the App tab's input gives you: text, or a file path if you
-switch the input to gr.Image / gr.File with type="filepath". The `input` column
-of eval/cases.csv uses the same convention.
+`raw_input` is the path of an image (the App tab uses gr.Image(type="filepath");
+eval/cases.csv uses paths like eval/inputs/c01.jpg).
 """
 
+import re
 from pathlib import Path
 
+import numpy as np
+from PIL import Image, UnidentifiedImageError
+
+import vision
+
 VERSIONS = {
-    "component_a": "placeholder-keywords-v0",
-    "component_b": "placeholder-template-v0",
+    "component_1": f"{vision.MODEL}/{vision.PROMPT_VERSION}",
+    "component_2": "placeholder-rule-v0",
 }
 
-# Placeholder thresholds. Yours must be justified in REPORT.md.
-REVIEW_BELOW_CONFIDENCE = 0.6
+N_VOTES = 3  # main answer + 2 votes; agreement = confidence (team decision 1)
 
-_NEGATIVE = {"broken", "late", "missing", "wrong", "refund", "bad", "problem", "error"}
-_POSITIVE = {"thanks", "great", "perfect", "fine", "good", "works"}
+# PLACEHOLDER threshold. The team sets it from the test cases (decision 7).
+REVIEW_BELOW_AGREEMENT = 0.67
 
-
-def read_input(raw_input: str) -> str:
-    """Text as it is; for a file path, the file's text. Replace for images."""
-    path = Path(str(raw_input))
-    if len(str(raw_input)) < 300 and path.is_file():
-        return path.read_text(encoding="utf-8", errors="replace")
-    return str(raw_input)
+# DeepSolarEye file names carry irradiance and time:
+# solar_Wed_Jun_28_7__5__6_2017_L_0.0123_I_0.0566.jpg
+_DSE_NAME = re.compile(r"solar_[A-Za-z]+_[A-Za-z]+_\d+_(\d+)__(\d+)__\d+_\d+_L_[\d.e-]+?_I_(\d+(?:\.\d+)?(?:e-?\d+)?)")
 
 
-def input_features(text: str) -> dict[str, float]:
-    """Numbers that describe the input, for the drift check (lengths, brightness, language...)."""
-    words = text.split()
-    letters = [c for c in text if c.isalpha()]
+def context_from_name(path: str) -> dict:
+    """Irradiance (0-1) and hour of day, if the file name has them (DeepSolarEye)."""
+    match = _DSE_NAME.search(Path(path).name)
+    if not match:
+        return {"irradiance": None, "hour": None}
+    hour, minute, irradiance = match.groups()
+    return {"irradiance": float(irradiance), "hour": round(int(hour) + int(minute) / 60, 2)}
+
+
+def image_features(path: str) -> dict[str, float]:
+    """Numbers that describe the photo, for the drift check (decision 9):
+    brightness for darker photos, colour balance for haze (calima)."""
+    with Image.open(path) as image:
+        pixels = np.asarray(image.convert("RGB").resize((96, 96)), dtype=float) / 255
+    r, g, b = pixels[..., 0].mean(), pixels[..., 1].mean(), pixels[..., 2].mean()
     return {
-        "n_words": float(len(words)),
-        "share_uppercase": sum(c.isupper() for c in letters) / len(letters) if letters else 0.0,
+        "brightness": round(float(pixels.mean()), 4),
+        "mean_r": round(float(r), 4),
+        "mean_g": round(float(g), 4),
+        "mean_b": round(float(b), 4),
+        "yellowness": round(float((r + g) / 2 - b), 4),  # haze/calima pushes this up
+        "contrast": round(float(pixels.std()), 4),
     }
 
 
-def component_a(text: str) -> dict:
-    """PLACEHOLDER first component: label the input and say how sure it is."""
-    words = {w.strip(".,!?;:").lower() for w in text.split()}
-    negative, positive = len(words & _NEGATIVE), len(words & _POSITIVE)
-    if negative == positive:
-        return {"label": "unclear", "confidence": 0.5}
-    label = "complaint" if negative > positive else "no_issue"
-    confidence = 0.5 + 0.5 * abs(negative - positive) / (negative + positive)
-    return {"label": label, "confidence": round(confidence, 3)}
+def component_1(path: str) -> dict:
+    """Vision: what is wrong with the panel (vision.py)."""
+    return vision.describe(path, n_votes=N_VOTES)
 
 
-def component_b(text: str, a: dict) -> dict:
-    """PLACEHOLDER second component: uses component A's output to write a reply."""
-    replies = {
-        "complaint": "We are sorry about the problem. We will contact you within 48 hours.",
-        "no_issue": "Thank you for your message. No action is needed.",
-        "unclear": "Thank you. A member of the team will review your message.",
-    }
-    return {"reply": replies[a["label"]], "tokens": 0}
+def component_2(c1: dict, context: dict) -> dict:
+    """PLACEHOLDER tabular component: estimated % power loss from component 1's output
+    (+ irradiance and hour). To be replaced by the regression trained on DeepSolarEye."""
+    if c1["label"] != "soiled":
+        return {"loss_pct": None, "note": "placeholder: only soiling has a loss estimate"}
+    guess = min(90.0, 10 * c1["n_spots"] + 100 * c1["covered_fraction"])
+    return {"loss_pct": round(guess, 1), "note": "placeholder rule, not a trained model"}
+
+
+def decide(c1: dict, c2: dict) -> tuple[str, bool]:
+    """Action and review flag (team decisions 4 and 7; thresholds are placeholders)."""
+    if not c1["is_solar_panel"]:
+        return "out_of_scope: the photo does not show a solar panel", False
+    if c1["label"] == "visible_damage":
+        return "send a technician (damage always goes to a person)", True
+    review = c1["agreement"] < REVIEW_BELOW_AGREEMENT or c1["label"] == "unknown"
+    if c1["label"] == "shaded":
+        return "check vegetation / obstacles (shade is not fixed by cleaning)", review
+    if c1["label"] == "clean":
+        return "no action", review
+    return f"cleaning candidate: estimated loss {c2['loss_pct']}%", review
 
 
 def run(raw_input: str) -> dict:
-    text = read_input(raw_input)
-    a = component_a(text)
-    b = component_b(text, a)
-    features = input_features(text) | {"confidence": a["confidence"]}
+    path = str(raw_input).strip()
+    try:
+        features = image_features(path)
+    except (FileNotFoundError, IsADirectoryError, UnidentifiedImageError, OSError, ValueError):
+        return {
+            "input_summary": "not an image",
+            "features": {},
+            "outputs": {"component_1": None, "component_2": None,
+                        "decision": "out_of_scope: send a photo of a solar panel"},
+            "versions": VERSIONS,
+            "review": False,
+            "tokens": 0,
+            "cost_eur": 0.0,
+        }
+
+    context = context_from_name(path)
+    c1 = component_1(path)
+    c2 = component_2(c1, context)
+    decision, review = decide(c1, c2)
     return {
-        "input_summary": text[:120],
-        "features": features,
-        "outputs": {"component_a": a, "component_b": b},
+        "input_summary": f"image {Path(path).name[:80]}",
+        "features": features | {"agreement": c1["agreement"]},
+        "outputs": {"component_1": c1, "component_2": c2, "context": context, "decision": decision},
         "versions": VERSIONS,
-        "review": a["confidence"] < REVIEW_BELOW_CONFIDENCE,
-        "tokens": b["tokens"],
-        "cost_eur": 0.0,
+        "review": review,
+        "tokens": c1["tokens"],
+        "cost_eur": c1["cost_eur"],
     }
