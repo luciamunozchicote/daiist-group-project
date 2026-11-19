@@ -1,0 +1,125 @@
+{
+ "n_photos": 701,
+ "n_train": 535,
+ "n_test": 166,
+ "test_days": [
+  "2017-06-27",
+  "2017-06-28",
+  "2017-06-29",
+  "2017-06-30"
+ ],
+ "decision_threshold_placeholder": 0.1,
+ "results": [
+  {
+   "model": "mean (no model)",
+   "features": "gemini + context",
+   "test_mae_pts": 26.56,
+   "cv_by_day_mae_pts": 21.86,
+   "test_decision_accuracy": 0.5
+  },
+  {
+   "model": "linear (ridge)",
+   "features": "gemini + context",
+   "test_mae_pts": 17.23,
+   "cv_by_day_mae_pts": 18.7,
+   "test_decision_accuracy": 0.651
+  },
+  {
+   "model": "linear (ridge)",
+   "features": "context only (no gemini)",
+   "test_mae_pts": 25.03,
+   "cv_by_day_mae_pts": 20.96,
+   "test_decision_accuracy": 0.5
+  },
+  {
+   "model": "linear (ridge)",
+   "features": "gemini only",
+   "test_mae_pts": 18.44,
+   "cv_by_day_mae_pts": 20.29,
+   "test_decision_accuracy": 0.5
+  },
+  {
+   "model": "random forest",
+   "features": "gemini + context",
+   "test_mae_pts": 15.32,
+   "cv_by_day_mae_pts": 20.12,
+   "test_decision_accuracy": 0.663
+  },
+  {
+   "model": "random forest",
+   "features": "context only (no gemini)",
+   "test_mae_pts": 24.67,
+   "cv_by_day_mae_pts": 22.32,
+   "test_decision_accuracy": 0.476
+  },
+  {
+   "model": "random forest",
+   "features": "gemini only",
+   "test_mae_pts": 15.54,
+   "cv_by_day_mae_pts": 19.81,
+   "test_decision_accuracy": 0.5
+  },
+  {
+   "model": "gradient boosting",
+   "features": "gemini + context",
+   "test_mae_pts": 15.19,
+   "cv_by_day_mae_pts": 19.98,
+   "test_decision_accuracy": 0.651
+  },
+  {
+   "model": "gradient boosting",
+   "features": "context only (no gemini)",
+   "test_mae_pts": 25.02,
+   "cv_by_day_mae_pts": 21.89,
+   "test_decision_accuracy": 0.458
+  },
+  {
+   "model": "gradient boosting",
+   "features": "gemini only",
+   "test_mae_pts": 17.41,
+   "cv_by_day_mae_pts": 19.62,
+   "test_decision_accuracy": 0.5
+  }
+ ],
+ "provisional_model": "linear (ridge)",
+ "error_p80_pts": 25.16,
+ "learning_curve": [
+  {
+   "train_photos": 50,
+   "test_mae_pts": 18.69
+  },
+  {
+   "train_photos": 100,
+   "test_mae_pts": 17.56
+  },
+  {
+   "train_photos": 200,
+   "test_mae_pts": 18.08
+  },
+  {
+   "train_photos": 300,
+   "test_mae_pts": 17.12
+  },
+  {
+   "train_photos": 400,
+   "test_mae_pts": 17.42
+  },
+  {
+   "train_photos": 500,
+   "test_mae_pts": 17.21
+  },
+  {
+   "train_photos": 535,
+   "test_mae_pts": 17.23
+  }
+ ],
+ "feature_importance": {
+  "covered_fraction": 0.0597,
+  "n_spots": 0.0011,
+  "spread_one_area": 0.0004,
+  "spread_several_areas": -0.0004,
+  "label_soiled": 0.0277,
+  "irradiance": 0.0099,
+  "hour": -0.0003
+ }
+}

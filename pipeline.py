@@ -3,9 +3,9 @@ Solar Triage: the two components and how one feeds the other.
 
     photo ──► component 1 (vision, Gemini) ──► component 2 (tabular, % power loss) ──► € / decision
 
-Component 1 is real (vision.py). Component 2 is still a PLACEHOLDER: a fixed
-rule, not a model, until the team trains the regression on DeepSolarEye
-(tools/label_deepsolareye.py prepares its training data).
+Component 1: vision.py (Gemini). Component 2: component2.py, a regression
+trained by tools/train_component2.py on DeepSolarEye photos that went through
+component 1 (tools/label_deepsolareye.py).
 
 `run()` must keep returning the dict app.py, evaluate.py, main.py and check.py read:
 
@@ -29,11 +29,12 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 
+import component2
 import vision
 
 VERSIONS = {
     "component_1": f"{vision.MODEL}/{vision.PROMPT_VERSION}",
-    "component_2": "placeholder-rule-v0",
+    "component_2": "regression-v1",
 }
 
 N_VOTES = 3  # main answer + 2 votes; agreement = confidence (team decision 1)
@@ -76,13 +77,23 @@ def component_1(path: str) -> dict:
     return vision.describe(path, n_votes=N_VOTES)
 
 
+# When the photo does not carry irradiance and hour (any photo that is not from
+# DeepSolarEye), use typical values. PLACEHOLDER: the team decides whether the
+# user types them in, or the app takes them from the plant's sensors.
+DEFAULT_CONTEXT = {"irradiance": 0.5, "hour": 12.0}
+
+
 def component_2(c1: dict, context: dict) -> dict:
-    """PLACEHOLDER tabular component: estimated % power loss from component 1's output
-    (+ irradiance and hour). To be replaced by the regression trained on DeepSolarEye."""
+    """Tabular ML: estimated % power loss from component 1's output + irradiance and hour.
+    Trained only on soiling (DeepSolarEye), so it only answers for soiled panels."""
     if c1["label"] != "soiled":
-        return {"loss_pct": None, "note": "placeholder: only soiling has a loss estimate"}
-    guess = min(90.0, 10 * c1["n_spots"] + 100 * c1["covered_fraction"])
-    return {"loss_pct": round(guess, 1), "note": "placeholder rule, not a trained model"}
+        return {"loss_pct": None, "note": "no estimate: the model only learned soiling losses"}
+    assumed = [k for k in ("irradiance", "hour") if context.get(k) is None]
+    filled = {k: DEFAULT_CONTEXT[k] if context.get(k) is None else context[k] for k in ("irradiance", "hour")}
+    result = component2.predict(c1, **filled)
+    if assumed:
+        result["assumed"] = {k: filled[k] for k in assumed}
+    return result
 
 
 def decide(c1: dict, c2: dict) -> tuple[str, bool]:
@@ -96,7 +107,10 @@ def decide(c1: dict, c2: dict) -> tuple[str, bool]:
         return "check vegetation / obstacles (shade is not fixed by cleaning)", review
     if c1["label"] == "clean":
         return "no action", review
-    return f"cleaning candidate: estimated loss {c2['loss_pct']}%", review
+    if c2.get("loss_pct") is None:
+        return "cleaning candidate (no loss estimate)", True
+    low, high = c2["loss_range_pct"]
+    return f"cleaning candidate: estimated loss {c2['loss_pct']}% (likely {low}-{high}%)", review
 
 
 def run(raw_input: str) -> dict:
@@ -116,7 +130,20 @@ def run(raw_input: str) -> dict:
         }
 
     context = context_from_name(path)
-    c1 = component_1(path)
+    try:
+        c1 = component_1(path)
+    except Exception as error:  # Gemini down, over the daily limit, or key missing
+        reason = getattr(error, "code", None) or type(error).__name__
+        return {
+            "input_summary": f"image {Path(path).name[:80]}",
+            "features": features | {"agreement": float("nan")},
+            "outputs": {"component_1": {"error": f"Gemini unavailable ({reason})"}, "component_2": None,
+                        "context": context, "decision": "component 1 unavailable: sent to a person"},
+            "versions": VERSIONS,
+            "review": True,
+            "tokens": 0,
+            "cost_eur": 0.0,
+        }
     c2 = component_2(c1, context)
     decision, review = decide(c1, c2)
     return {
