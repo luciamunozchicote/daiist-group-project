@@ -44,6 +44,9 @@ OUT_REPORT = ROOT / "models" / "component2_report.json"
 TEST_DAYS = 4
 CLEAN_IF_LOSS_ABOVE = 0.10  # PLACEHOLDER decision threshold (team: derive it from the € formula)
 SEED = 42
+# How the app's model is picked (team decision). Always on the training days only
+# (leave-one-day-out CV), never on the test days, so the test score stays honest.
+SELECT_BY = "cv_by_day_decision_accuracy"  # or "cv_by_day_mae_pts"
 
 MODELS = {
     "mean (no model)": lambda: DummyRegressor(strategy="mean"),
@@ -90,6 +93,7 @@ def main() -> None:
                 "features": set_name,
                 "test_mae_pts": round(100 * mean_absolute_error(y_test, pred), 2),
                 "cv_by_day_mae_pts": round(100 * mean_absolute_error(y_train, cv_pred), 2),
+                "cv_by_day_decision_accuracy": round(decision_accuracy(y_train, cv_pred), 3),
                 "test_decision_accuracy": round(decision_accuracy(y_test, pred), 3),
             })
     table = pd.DataFrame(results)
@@ -97,13 +101,15 @@ def main() -> None:
     print(f"Decision accuracy = clean/don't-clean right at a {CLEAN_IF_LOSS_ABOVE:.0%} loss threshold (placeholder).\n")
     print(table.to_string(index=False), "\n")
 
-    # Provisional pick: best leave-one-day-out MAE among models using gemini + context.
+    # Pick among models using gemini + context, by SELECT_BY on the CV (ties: lower CV MAE).
     candidates = table[(table["features"] == "gemini + context") & (table["model"] != "mean (no model)")]
-    best = candidates.sort_values("cv_by_day_mae_pts").iloc[0]["model"]
+    higher_is_better = SELECT_BY.endswith("accuracy")
+    best = candidates.sort_values([SELECT_BY, "cv_by_day_mae_pts"],
+                                  ascending=[not higher_is_better, True]).iloc[0]["model"]
     model = MODELS[best]().fit(x_train[ALL_FEATURES], y_train)
     errors = np.abs(np.clip(model.predict(x_test[ALL_FEATURES]), 0, 1) - y_test)
     error_p80 = float(np.quantile(errors, 0.8))
-    print(f"Provisional model for the app: {best} (gemini + context). "
+    print(f"Model for the app, picked by {SELECT_BY}: {best} (gemini + context). "
           f"80% of test errors are below {100 * error_p80:.1f} points -> shown as the range.\n")
 
     # Learning curve: does more data help?
@@ -136,7 +142,7 @@ def main() -> None:
         "n_photos": len(data), "n_train": len(train), "n_test": len(test),
         "test_days": [pd.Timestamp(d).strftime("%Y-%m-%d") for d in test_days],
         "decision_threshold_placeholder": CLEAN_IF_LOSS_ABOVE,
-        "results": results, "provisional_model": best, "error_p80_pts": round(100 * error_p80, 2),
+        "results": results, "selected_by": SELECT_BY, "provisional_model": best, "error_p80_pts": round(100 * error_p80, 2),
         "learning_curve": curve, "feature_importance": importance,
     }, indent=1))
     print(f"Saved {OUT_MODEL.relative_to(ROOT)} and {OUT_REPORT.relative_to(ROOT)}")
