@@ -42,7 +42,24 @@ DATA = ROOT / "data" / "deepsolareye_gemini.csv"
 OUT_MODEL = ROOT / "models" / "component2.joblib"
 OUT_REPORT = ROOT / "models" / "component2_report.json"
 TEST_DAYS = 4
-CLEAN_IF_LOSS_ABOVE = 0.10  # PLACEHOLDER decision threshold (team: derive it from the € formula)
+# Decision threshold from the € formula: clean when the energy lost by the dirt,
+# until the next scheduled cleaning, is worth more than cleaning.
+#   threshold = cleaning cost / (energy per m2 until next cleaning x price)
+CLEANING_EUR_PER_M2 = 0.09        # Micheli et al., Energy 2021 (1 MW plant, Granada), doi:10.1016/j.energy.2020.119018
+YIELD_KWH_PER_KWP_YEAR = 1718     # same plant, 2019 AC yield
+MODULE_KWP_PER_M2 = 0.21          # ~21% efficient modern module (team: check against your module datasheet)
+DAYS_TO_NEXT_CLEANING = 30        # TEAM DECISION: how often the plant is cleaned anyway
+PRICE_EUR_PER_KWH = 0.0325        # Spain solar PPA, LevelTen Q4 2025 (main case)
+PRICE_SENSITIVITY = {"OMIE solar captured 2025 (UNEF)": 0.03639,
+                     "OMIE solar captured H1 2026 (UNEF)": 0.02968}
+
+
+def loss_threshold(price: float, days: int = DAYS_TO_NEXT_CLEANING) -> float:
+    kwh_per_m2 = YIELD_KWH_PER_KWP_YEAR * MODULE_KWP_PER_M2 / 365 * days
+    return CLEANING_EUR_PER_M2 / (kwh_per_m2 * price)
+
+
+CLEAN_IF_LOSS_ABOVE = round(loss_threshold(PRICE_EUR_PER_KWH), 3)
 SEED = 42
 # How the app's model is picked (team decision). Always on the training days only
 # (leave-one-day-out CV), never on the test days, so the test score stays honest.
@@ -98,7 +115,10 @@ def main() -> None:
             })
     table = pd.DataFrame(results)
     print("MAE = average error in points of % loss (lower is better).")
-    print(f"Decision accuracy = clean/don't-clean right at a {CLEAN_IF_LOSS_ABOVE:.0%} loss threshold (placeholder).\n")
+    print(f"Decision accuracy = clean/don't-clean right at a {CLEAN_IF_LOSS_ABOVE:.0%} loss threshold (from the € formula).")
+    for label, price in PRICE_SENSITIVITY.items():
+        print(f"  sensitivity, {label} at {price} €/kWh: threshold {loss_threshold(price):.1%}")
+    print()
     print(table.to_string(index=False), "\n")
 
     # Pick among models using gemini + context, by SELECT_BY on the CV (ties: lower CV MAE).
@@ -141,7 +161,7 @@ def main() -> None:
     OUT_REPORT.write_text(json.dumps({
         "n_photos": len(data), "n_train": len(train), "n_test": len(test),
         "test_days": [pd.Timestamp(d).strftime("%Y-%m-%d") for d in test_days],
-        "decision_threshold_placeholder": CLEAN_IF_LOSS_ABOVE,
+        "decision_threshold": CLEAN_IF_LOSS_ABOVE,
         "results": results, "selected_by": SELECT_BY, "provisional_model": best, "error_p80_pts": round(100 * error_p80, 2),
         "learning_curve": curve, "feature_importance": importance,
     }, indent=1))
