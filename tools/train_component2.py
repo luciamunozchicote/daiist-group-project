@@ -36,34 +36,18 @@ from sklearn.preprocessing import StandardScaler
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import economics  # noqa: E402
 from component2 import ALL_FEATURES, CONTEXT_FEATURES, GEMINI_FEATURES, to_features  # noqa: E402
 
 DATA = ROOT / "data" / "deepsolareye_gemini.csv"
 OUT_MODEL = ROOT / "models" / "component2.joblib"
 OUT_REPORT = ROOT / "models" / "component2_report.json"
 TEST_DAYS = 4
-# Decision threshold from the € formula: clean when the energy lost by the dirt,
-# until the next scheduled cleaning, is worth more than cleaning.
-#   threshold = cleaning cost / (energy per m2 until next cleaning x price)
-CLEANING_EUR_PER_M2 = 0.09        # Micheli et al., Energy 2021 (1 MW plant, Granada), doi:10.1016/j.energy.2020.119018
-YIELD_KWH_PER_KWP_YEAR = 1718     # same plant, 2019 AC yield
-MODULE_KWP_PER_M2 = 0.21          # ~21% efficient modern module (team: check against your module datasheet)
-DAYS_TO_NEXT_CLEANING = 30        # TEAM DECISION: how often the plant is cleaned anyway
-PRICE_EUR_PER_KWH = 0.0325        # Spain solar PPA, LevelTen Q4 2025 (main case)
-PRICE_SENSITIVITY = {"OMIE solar captured 2025 (UNEF)": 0.03639,
-                     "OMIE solar captured H1 2026 (UNEF)": 0.02968}
-
-
-def loss_threshold(price: float, days: int = DAYS_TO_NEXT_CLEANING) -> float:
-    kwh_per_m2 = YIELD_KWH_PER_KWP_YEAR * MODULE_KWP_PER_M2 / 365 * days
-    return CLEANING_EUR_PER_M2 / (kwh_per_m2 * price)
-
-
-CLEAN_IF_LOSS_ABOVE = round(loss_threshold(PRICE_EUR_PER_KWH), 3)
+CLEAN_IF_LOSS_ABOVE = round(economics.CLEAN_IF_LOSS_ABOVE, 3)  # from the € formula (economics.py)
 SEED = 42
 # How the app's model is picked (team decision). Always on the training days only
 # (leave-one-day-out CV), never on the test days, so the test score stays honest.
-SELECT_BY = "cv_by_day_decision_accuracy"  # or "cv_by_day_mae_pts"
+SELECT_BY = "cv_by_day_decision_accuracy"  # or "cv_by_day_mae_pts" or "cv_by_day_regret_eur_m2"
 
 MODELS = {
     "mean (no model)": lambda: DummyRegressor(strategy="mean"),
@@ -77,6 +61,16 @@ FEATURE_SETS = {
     "context only (no gemini)": CONTEXT_FEATURES,
     "gemini only": GEMINI_FEATURES,
 }
+
+
+def regret_eur(y_true, y_pred) -> float:
+    """€ per m2 per photo lost by wrong clean/don't-clean calls, against perfect knowledge.
+    Cleaning a panel that did not need it wastes the cleaning; not cleaning one that
+    did loses its energy until the next cleaning. 0 = every call right."""
+    gain = np.array([economics.net_gain_per_m2(loss) for loss in y_true])  # € if we clean now
+    chosen = np.where(y_pred > CLEAN_IF_LOSS_ABOVE, gain, 0.0)
+    best = np.maximum(gain, 0.0)
+    return float(np.mean(best - chosen))
 
 
 def decision_accuracy(y_true, y_pred) -> float:
@@ -112,17 +106,30 @@ def main() -> None:
                 "cv_by_day_mae_pts": round(100 * mean_absolute_error(y_train, cv_pred), 2),
                 "cv_by_day_decision_accuracy": round(decision_accuracy(y_train, cv_pred), 3),
                 "test_decision_accuracy": round(decision_accuracy(y_test, pred), 3),
+                "cv_by_day_regret_eur_m2": round(regret_eur(y_train, cv_pred), 4),
+                "test_regret_eur_m2": round(regret_eur(y_test, pred), 4),
             })
+    # Rules with no model at all: what the € metric is compared against.
+    for rule, value in (("rule: always clean", 1.0), ("rule: never clean", 0.0)):
+        results.append({
+            "model": rule, "features": "-", "test_mae_pts": None, "cv_by_day_mae_pts": None,
+            "cv_by_day_decision_accuracy": round(decision_accuracy(y_train, np.full(len(y_train), value)), 3),
+            "test_decision_accuracy": round(decision_accuracy(y_test, np.full(len(y_test), value)), 3),
+            "cv_by_day_regret_eur_m2": round(regret_eur(y_train, np.full(len(y_train), value)), 4),
+            "test_regret_eur_m2": round(regret_eur(y_test, np.full(len(y_test), value)), 4),
+        })
     table = pd.DataFrame(results)
     print("MAE = average error in points of % loss (lower is better).")
     print(f"Decision accuracy = clean/don't-clean right at a {CLEAN_IF_LOSS_ABOVE:.0%} loss threshold (from the € formula).")
-    for label, price in PRICE_SENSITIVITY.items():
-        print(f"  sensitivity, {label} at {price} €/kWh: threshold {loss_threshold(price):.1%}")
+    for label, price in economics.PRICE_SENSITIVITY.items():
+        print(f"  sensitivity, {label} at {price} €/kWh: threshold {economics.loss_threshold(price):.1%}")
     print()
+    print("Regret = € per m2 per photo lost by wrong clean/don't-clean calls (lower is better).\n")
     print(table.to_string(index=False), "\n")
 
     # Pick among models using gemini + context, by SELECT_BY on the CV (ties: lower CV MAE).
     candidates = table[(table["features"] == "gemini + context") & (table["model"] != "mean (no model)")]
+    candidates = candidates[candidates["features"] == "gemini + context"]
     higher_is_better = SELECT_BY.endswith("accuracy")
     best = candidates.sort_values([SELECT_BY, "cv_by_day_mae_pts"],
                                   ascending=[not higher_is_better, True]).iloc[0]["model"]

@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent
 REFERENCE_FILE = ROOT / "monitoring" / "reference_features.csv"
 
 PSI_BINS = 5           # quantile bins of the reference; few, because samples are small
+PSI_SMOOTHING = 1.0    # photos added to every bin (Laplace), so an empty bin does not explode the PSI
 PSI_ALERT = 0.25       # PLACEHOLDER: alert when a feature's PSI exceeds this...
 NOISE_MULTIPLE = 2     # ...and this many times the PSI expected by chance (psi_noise)
 WINDOW = 100           # the drift check looks at the last WINDOW requests...
@@ -51,9 +52,12 @@ def psi(reference, current, bins: int = PSI_BINS) -> float:
         return float("nan")
     ref_bins, cur_bins = _bin(reference, reference, bins), _bin(current, reference, bins)
     n_bins = max(ref_bins.max(), cur_bins.max()) + 1
-    expected = np.bincount(ref_bins, minlength=n_bins) / len(reference)
-    actual = np.bincount(cur_bins, minlength=n_bins) / len(current)
-    expected, actual = np.clip(expected, 1e-4, None), np.clip(actual, 1e-4, None)
+    # Laplace smoothing: +1 photo in every bin. Without it, one bin that happens to
+    # be empty in a batch of 20 adds ~1.5 to the PSI on its own (log of 1e-4), and on
+    # normal DeepSolarEye batches the alert fired 1 time in 2. With it: ~1 in 20.
+    # (tested in tools/check_drift_offline.py)
+    expected = (np.bincount(ref_bins, minlength=n_bins) + PSI_SMOOTHING) / (len(reference) + PSI_SMOOTHING * n_bins)
+    actual = (np.bincount(cur_bins, minlength=n_bins) + PSI_SMOOTHING) / (len(current) + PSI_SMOOTHING * n_bins)
     return float(np.sum((actual - expected) * np.log(actual / expected)))
 
 
@@ -103,10 +107,18 @@ def quality(logs: pd.DataFrame, freq: str = "h") -> pd.DataFrame:
         "share sent to review": df["review"].astype(float).resample(freq).mean(),
         "share 👎 (of rated)": (rated < 0).astype(float).resample(freq).mean(),
     })
-    if "f_confidence" in df:
-        signals["mean confidence"] = df["f_confidence"].resample(freq).mean()
+    if "f_agreement" in df:  # component 1's confidence: share of the 3 Gemini answers that agree
+        signals["mean agreement (Gemini)"] = df["f_agreement"].astype(float).resample(freq).mean()
+    actions = df["outputs"].apply(lambda o: o.get("action") if isinstance(o, dict) else None)
+    signals["share Gemini unavailable"] = (actions == "unavailable").astype(float).resample(freq).mean()
+    signals["share 'clean it'"] = (actions == "clean").astype(float).resample(freq).mean()
     long = signals.reset_index(names="time").melt("time", var_name="signal", value_name="value")
     return long.dropna()
+
+
+def _actions(logs: pd.DataFrame) -> pd.Series:
+    """What the product told the user to do (pipeline.ACTIONS), per request."""
+    return logs["outputs"].apply(lambda o: o.get("action") if isinstance(o, dict) else None)
 
 
 def summary(logs: pd.DataFrame) -> pd.DataFrame:
@@ -118,6 +130,8 @@ def summary(logs: pd.DataFrame) -> pd.DataFrame:
         "sent to review": f"{logs['review'].mean():.0%}",
         "rated 👍/👎": len(rated),
         "share 👎 (of rated)": f"{(rated < 0).mean():.0%}" if len(rated) else "-",
+        "Gemini unavailable": f"{(_actions(logs) == 'unavailable').mean():.0%}",
+        "actions": ", ".join(f"{k} {v}" for k, v in _actions(logs).value_counts().items()),
         "median latency (s)": round(float(logs["latency_s"].median()), 2),
         "mean cost per request (€)": round(float(logs["cost_eur"].mean()), 5),
         "total cost (€)": round(float(logs["cost_eur"].sum()), 4),

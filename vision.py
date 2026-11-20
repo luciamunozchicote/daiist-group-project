@@ -26,11 +26,14 @@ PROMPT_VERSION = "panel-v1"
 LABELS = ["clean", "soiled", "shaded", "visible_damage"]
 VOTE_TEMPERATURE = 0.8
 
-# Price per million tokens in EUR, for the cost column. TODO (team): check the
-# current Gemini price list and cite it in REPORT.md. The free tier costs 0 €,
-# but report what the product would cost on a paid plan.
-EUR_PER_M_INPUT_TOKENS = 0.0
-EUR_PER_M_OUTPUT_TOKENS = 0.0
+# Price per million tokens in EUR, for the cost column. The free tier costs 0 €,
+# but we report what the product would cost on the paid plan:
+# $0.30 input / $2.50 output (thinking included) per 1M tokens, Google DeepMind
+# model page https://deepmind.google/models/gemini/flash-lite/ (checked 2026-11-20),
+# at 0.86 €/$. TODO (team): confirm on https://ai.google.dev/pricing before submitting.
+USD_TO_EUR = 0.86
+EUR_PER_M_INPUT_TOKENS = 0.30 * USD_TO_EUR
+EUR_PER_M_OUTPUT_TOKENS = 2.50 * USD_TO_EUR
 
 PROMPT = f"""You inspect solar panels for a maintenance company.
 Look at the large solar panel in the foreground (the one closest to the camera).
@@ -77,7 +80,9 @@ def _call(image_bytes: bytes, mime: str, temperature: float, retries: int = 4) -
                 data = json.load(response)
             text = data["candidates"][0]["content"]["parts"][0]["text"]
             usage = data.get("usageMetadata", {})
-            return json.loads(text), usage.get("promptTokenCount", 0), usage.get("candidatesTokenCount", 0)
+            # output is billed with the model's thinking tokens
+            tokens_out = usage.get("candidatesTokenCount", 0) + usage.get("thoughtsTokenCount", 0)
+            return json.loads(text), usage.get("promptTokenCount", 0), tokens_out
         except urllib.error.HTTPError as error:
             # 429 = rate limit, 5xx = Gemini overloaded: wait and retry
             if error.code in (429, 500, 502, 503, 504) and attempt < retries - 1:

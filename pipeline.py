@@ -30,6 +30,7 @@ import numpy as np
 from PIL import Image, UnidentifiedImageError
 
 import component2
+import economics
 import vision
 
 VERSIONS = {
@@ -96,21 +97,34 @@ def component_2(c1: dict, context: dict) -> dict:
     return result
 
 
-def decide(c1: dict, c2: dict) -> tuple[str, bool]:
-    """Action and review flag (team decisions 4 and 7; thresholds are placeholders)."""
+# What the product can tell the maintenance manager to do. evaluate.py compares
+# `action` with the `expected` column of eval/cases.csv, so cases use these words.
+ACTIONS = ["no_action", "clean", "wait", "check_shade", "technician", "out_of_scope", "unavailable"]
+
+
+def decide(c1: dict, c2: dict) -> tuple[str, str, bool]:
+    """(action, sentence for the user, review flag). Team decisions 4 and 7;
+    the cleaning threshold comes from the € formula (economics.py)."""
     if not c1["is_solar_panel"]:
-        return "out_of_scope: the photo does not show a solar panel", False
+        return "out_of_scope", "The photo does not show a solar panel.", False
     if c1["label"] == "visible_damage":
-        return "send a technician (damage always goes to a person)", True
+        return "technician", "Send a technician: visible damage (damage always goes to a person).", True
     review = c1["agreement"] < REVIEW_BELOW_AGREEMENT or c1["label"] == "unknown"
     if c1["label"] == "shaded":
-        return "check vegetation / obstacles (shade is not fixed by cleaning)", review
-    if c1["label"] == "clean":
-        return "no action", review
+        return "check_shade", "Check vegetation / obstacles: shade is not fixed by cleaning.", review
+    if c1["label"] in ("clean", "unknown"):
+        return "no_action", "No action: the panel looks clean.", review
     if c2.get("loss_pct") is None:
-        return "cleaning candidate (no loss estimate)", True
+        return "clean", "Cleaning candidate (no loss estimate).", True
     low, high = c2["loss_range_pct"]
-    return f"cleaning candidate: estimated loss {c2['loss_pct']}% (likely {low}-{high}%)", review
+    threshold = 100 * economics.CLEAN_IF_LOSS_ABOVE
+    gain = economics.net_gain_per_m2(c2["loss_pct"] / 100)
+    if c2["loss_pct"] > threshold:
+        return ("clean", f"Clean it: estimated loss {c2['loss_pct']}% (likely {low}-{high}%), above the "
+                f"{threshold:.1f}% at which cleaning pays off; about €{gain:.2f} per m² gained "
+                f"before the next scheduled cleaning.", review)
+    return ("wait", f"Wait for the scheduled cleaning: estimated loss {c2['loss_pct']}% (likely {low}-{high}%), "
+            f"below the {threshold:.1f}% at which cleaning pays off.", review)
 
 
 def run(raw_input: str) -> dict:
@@ -122,7 +136,7 @@ def run(raw_input: str) -> dict:
             "input_summary": "not an image",
             "features": {},
             "outputs": {"component_1": None, "component_2": None,
-                        "decision": "out_of_scope: send a photo of a solar panel"},
+                        "action": "out_of_scope", "decision": "Send a photo of a solar panel."},
             "versions": VERSIONS,
             "review": False,
             "tokens": 0,
@@ -136,20 +150,22 @@ def run(raw_input: str) -> dict:
         reason = getattr(error, "code", None) or type(error).__name__
         return {
             "input_summary": f"image {Path(path).name[:80]}",
-            "features": features | {"agreement": float("nan")},
+            "features": features,  # no agreement: NaN would break the Postgres log (jsonb)
             "outputs": {"component_1": {"error": f"Gemini unavailable ({reason})"}, "component_2": None,
-                        "context": context, "decision": "component 1 unavailable: sent to a person"},
+                        "context": context, "action": "unavailable",
+                        "decision": "Component 1 unavailable: sent to a person."},
             "versions": VERSIONS,
             "review": True,
             "tokens": 0,
             "cost_eur": 0.0,
         }
     c2 = component_2(c1, context)
-    decision, review = decide(c1, c2)
+    action, decision, review = decide(c1, c2)
     return {
         "input_summary": f"image {Path(path).name[:80]}",
         "features": features | {"agreement": c1["agreement"]},
-        "outputs": {"component_1": c1, "component_2": c2, "context": context, "decision": decision},
+        "outputs": {"component_1": c1, "component_2": c2, "context": context,
+                    "action": action, "decision": decision},
         "versions": VERSIONS,
         "review": review,
         "tokens": c1["tokens"],
