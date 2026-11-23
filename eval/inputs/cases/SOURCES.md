@@ -10,5 +10,12 @@
 | out_of_scope_Solar_Water_Heater_boiler.jpg | CC BY 2.0 | gmourits | https://www.flickr.com/photos/11066072@N06/4453383679 |
 | out_of_scope_Tile_Roof.jpg | CC BY 2.0 | shaire productions | https://www.flickr.com/photos/9822107@N08/4586222425 |
 | out_of_scope_SDIM7766_Field_Landscape_2_km_south_of_V.jpg | CC BY 2.0 | carlfbagge | https://www.flickr.com/photos/12535240@N05/6132887476 |
+| clean_Solar_Energy_System.jpg | CC BY 2.0 | Jeremy Levine Design | https://www.flickr.com/photos/25186605@N04/2814805163 |
+| clean_Solar_Panels.jpg | CC BY 2.0 | Jeremy Levine Design | https://www.flickr.com/photos/25186605@N04/2903370723 |
+| clean_Haslingfield_Solar_Farm_panels_sky_C_BEL.jpg | CC BY-SA 2.0 | solartradeassociation | https://www.flickr.com/photos/126337375@N05/15986041648 |
+| dirty_Dirty_Panel.jpg | CC BY 2.0 | Jesse Wagstaff | https://www.flickr.com/photos/49503128117@N01/2356571139 |
+| dirty_Sun_Stage.jpg | CC BY 2.0 | Jesse Wagstaff | https://www.flickr.com/photos/49503128117@N01/2356571301 |
+| dirty_Pollen_on_the_Solar_Panels.jpg | CC BY 2.0 | techmsg | https://www.flickr.com/photos/17966142@N08/26346252231 |
+| clean_Solar_sky.jpg | CC BY 2.0 | Mountain/\Ash | https://www.flickr.com/photos/36692429@N00/3099341087 |
 
 DeepSolarEye photos (solar_*.jpg): Mehta et al., *DeepSolarEye*, WACV 2018, CC BY-NC-SA, https://deep-solar-eye.github.io
