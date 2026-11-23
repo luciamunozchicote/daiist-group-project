@@ -25,6 +25,8 @@ def main() -> None:
     parser.add_argument("--images", required=True)
     parser.add_argument("--per-band", type=int, default=5)
     parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--copy", action="store_true",
+                        help="also copy them to eval/inputs/candidates/ (so teammates can pick without the dataset)")
     args = parser.parse_args()
     images = Path(args.images).expanduser()
     with (ROOT / "data" / "deepsolareye_gemini.csv").open(newline="") as f:
@@ -39,6 +41,10 @@ def main() -> None:
         print(f"\nTrue loss {lo:.0%}-{hi:.0%} ({len(band)} photos):")
         for name in rng.sample(band, min(args.per_band, len(band))):
             print(f"  {float(LOSS.search(name).group(1)):6.1%}  {name}")
+            if args.copy:
+                out = ROOT / "eval" / "inputs" / "candidates"
+                out.mkdir(parents=True, exist_ok=True)
+                (out / name).write_bytes((images / name).read_bytes())
 
 
 if __name__ == "__main__":
