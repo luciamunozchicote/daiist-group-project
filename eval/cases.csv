@@ -19,3 +19,6 @@ c17,eval/inputs/cases/solar_Thu_Jun_29_6__58__19_2017_L_0.658453596152_I_0.03342
 c18,eval/inputs/cases/solar_Tue_Jun_27_6__2__39_2017_L_0.0830830830831_I_0.00391764705882.jpg,hard,wait,,Almost black; looks clean (true loss 8.3%)
 c19,eval/inputs/cases/solar_Thu_Jun_29_12__49__25_2017_L_0.077042251849_I_0.660650980392.jpg,hard,wait,,Midday; looks clean but loses some power (true loss 7.7%)
 c20,eval/inputs/cases/solar_Tue_Jun_27_12__35__39_2017_L_0.0673077686003_I_0.494247058824.jpg,hard,wait,,Scattered small white spots; moderate loss (true loss 6.7%)
+c21,eval/inputs/cases/solar_Tue_Jun_27_14__49__18_2017_L_0.0251367965003_I_0.278788235294.jpg,normal,wait,,Spare clean (true loss 2.5%)
+c22,eval/inputs/cases/solar_Fri_Jun_30_11__55__50_2017_L_0.737448158087_I_0.803725490196.jpg,normal,clean,,Spare very dirty (true loss 73.7%)
+c23,eval/inputs/cases/solar_Tue_Jun_27_17__47__29_2017_L_0.0916135780165_I_0.0824862745098.jpg,hard,wait,,Spare hard; dusk (true loss 9.2%)
