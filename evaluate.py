@@ -43,7 +43,16 @@ def is_correct(case: dict, result: dict) -> bool | None:
         return None
     if case["kind"].strip().lower() == "review" and not result["review"]:
         return False
-    return result["outputs"]["action"] == expected
+    return _same_decision(result["outputs"]["action"], expected)
+
+
+# `no_action` (looks clean) and `wait` (dirty, but not worth a visit yet) lead to the
+# same thing for the manager: nobody goes to clean. Counted as the same decision.
+_DONT_CLEAN = {"no_action", "wait"}
+
+
+def _same_decision(action: str | None, expected: str) -> bool:
+    return action == expected or (action in _DONT_CLEAN and expected in _DONT_CLEAN)
 
 
 def baseline_correct(case: dict) -> bool | None:
@@ -51,7 +60,7 @@ def baseline_correct(case: dict) -> bool | None:
     baseline, expected = case["baseline"].strip().lower(), case["expected"].strip().lower()
     if baseline not in pipeline.ACTIONS or expected not in pipeline.ACTIONS:
         return None
-    return baseline == expected
+    return _same_decision(baseline, expected)
 
 
 def component_1_metrics() -> None:
