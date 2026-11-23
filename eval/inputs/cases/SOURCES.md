@@ -17,5 +17,12 @@
 | dirty_Sun_Stage.jpg | CC BY 2.0 | Jesse Wagstaff | https://www.flickr.com/photos/49503128117@N01/2356571301 |
 | dirty_Pollen_on_the_Solar_Panels.jpg | CC BY 2.0 | techmsg | https://www.flickr.com/photos/17966142@N08/26346252231 |
 | clean_Solar_sky.jpg | CC BY 2.0 | Mountain/\Ash | https://www.flickr.com/photos/36692429@N00/3099341087 |
+| Dornbirn-NEXT_Power_145_aSi-dirty-pollen-02ASD.jpg | CC BY-SA 4.0 | Asurnipal | https://commons.wikimedia.org/wiki/File:Dornbirn-NEXT_Power_145_aSi-dirty-pollen-02ASD.jpg |
+| Dornbirn-NEXT_Power_145_aSi-dirty-pollen-01ASD.jpg | CC BY-SA 4.0 | Asurnipal | https://commons.wikimedia.org/wiki/File:Dornbirn-NEXT_Power_145_aSi-dirty-pollen-01ASD.jpg |
+| Maeder-Photovoltaic_system-Shadows-02ASD.jpg | CC BY-SA 4.0 | Asurnipal | https://commons.wikimedia.org/wiki/File:Maeder-Photovoltaic_system-Shadows-02ASD.jpg |
+| Maeder-Photovoltaic_system-Shadows-01ASD.jpg | CC BY-SA 4.0 | Asurnipal | https://commons.wikimedia.org/wiki/File:Maeder-Photovoltaic_system-Shadows-01ASD.jpg |
+| Solar_panel_shadow_in_Burgundy_France.jpg | CC BY-SA 4.0 | Ibex73 | https://commons.wikimedia.org/wiki/File:Solar_panel_shadow_in_Burgundy,_France.jpg |
+| out_of_scope_glass_facade.jpg | CC BY 2.0 | o palsson | https://www.flickr.com/photos/45713725@N00/14656366473 |
+| out_of_scope_greenhouse.jpg | CC BY 2.0 | Karen Roe | https://www.flickr.com/photos/28752865@N08/8321757022 |
 
 DeepSolarEye photos (solar_*.jpg): Mehta et al., *DeepSolarEye*, WACV 2018, CC BY-NC-SA, https://deep-solar-eye.github.io
