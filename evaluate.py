@@ -137,6 +137,9 @@ def main() -> None:
         if len(both):
             print(f"Baseline correct: {both['baseline_correct'].mean():.0%} of {len(both)} cases "
                   f"(product on the same cases: {both['correct'].mean():.0%}).")
+        # Second comparison (team decision 2026-11-23): the "always clean" rule.
+        always_clean = scored["expected"].map(lambda e: _same_decision("clean", e.strip().lower()))
+        print(f"Rule 'always clean' correct: {always_clean.mean():.0%} of {len(scored)} cases.")
         print("\nWhat the product did vs what was expected (rows = expected):")
         print(pd.crosstab(scored["expected"], scored["action"]).to_string())
 

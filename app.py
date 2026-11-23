@@ -24,19 +24,19 @@ TITLE = "Solar Triage"
 DESCRIPTION = "For maintenance managers of solar plants: upload a photo of a panel and get what is wrong (dirt, shade, damage), the estimated power loss and what to do."  # TODO (team): final wording
 
 
-def serve(raw_input: str) -> dict:
+def serve(raw_input: str, irradiance: float | None = None, hour: float | None = None) -> dict:
     """Run one request through the pipeline, log it, and return the logged record."""
     started = time.perf_counter()
-    result = pipeline.run(raw_input)
+    result = pipeline.run(raw_input, irradiance=irradiance, hour=hour)
     return logbook.log_request(result | {"latency_s": round(time.perf_counter() - started, 3)})
 
 
 # --- App tab -----------------------------------------------------------------
 
-def on_run(raw_input):
+def on_run(raw_input, irradiance=None, hour=None):
     if raw_input is None or not str(raw_input).strip():
         raise gr.Error("Upload a photo of a solar panel first.")
-    record = serve(raw_input)
+    record = serve(raw_input, irradiance=irradiance, hour=hour)
     outputs = record["outputs"]
     status = "⚠️ **Sent to a person for review.**" if record["review"] else "✅ Handled automatically."
     return (
@@ -83,7 +83,11 @@ with gr.Blocks(title=TITLE) as demo:
     with gr.Tab("App"):
         request_id = gr.State("")
         raw_input = gr.Image(type="filepath", label="Photo of the solar panel")
+        with gr.Row():
+            irradiance = gr.Number(value=None, minimum=0, maximum=1, label="Irradiance (optional, 0-1 as in DeepSolarEye; 1 = strongest sun)")
+            hour = gr.Number(value=None, minimum=0, maximum=24, label="Hour the photo was taken (optional, 0-24)")
         run_button = gr.Button("Run", variant="primary")
+        api_button = gr.Button(visible=False)  # keeps /run photo-only for check.py
         decision = gr.Markdown()
         with gr.Row():
             out_a = gr.JSON(label="Component 1 · vision (Gemini)")
@@ -92,7 +96,9 @@ with gr.Blocks(title=TITLE) as demo:
         with gr.Row():
             up = gr.Button("👍")
             down = gr.Button("👎")
-        run_button.click(on_run, raw_input, [out_a, out_b, decision, status, request_id], api_name="run")
+        run_outputs = [out_a, out_b, decision, status, request_id]
+        run_button.click(on_run, [raw_input, irradiance, hour], run_outputs, api_name=False)
+        api_button.click(on_run, raw_input, run_outputs, api_name="run")
         up.click(lambda rid: on_feedback(rid, +1), request_id, None, api_name=False)
         down.click(lambda rid: on_feedback(rid, -1), request_id, None, api_name=False)
 

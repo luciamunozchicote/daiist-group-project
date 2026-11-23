@@ -1,7 +1,8 @@
 """
 Monitoring: quality signals over time, drift against the reference set, alerts.
 
-The thresholds below are PLACEHOLDERS. Choose yours and justify them in
+PSI_ALERT was decided by the team (2026-11-23); THUMBS_DOWN_ALERT is still a
+PLACEHOLDER. Choose yours and justify them in
 REPORT.md: how many false alarms on normal inputs you accept, and how big a
 shift has to be before it matters for your product.
 """
@@ -16,7 +17,7 @@ REFERENCE_FILE = ROOT / "monitoring" / "reference_features.csv"
 
 PSI_BINS = 5           # quantile bins of the reference; few, because samples are small
 PSI_SMOOTHING = 1.0    # photos added to every bin (Laplace), so an empty bin does not explode the PSI
-PSI_ALERT = 0.25       # PLACEHOLDER: alert when a feature's PSI exceeds this...
+PSI_ALERT = 0.25       # Team decision (2026-11-23), usual "significant shift" level; alert when a feature's PSI exceeds this...
 NOISE_MULTIPLE = 2     # ...and this many times the PSI expected by chance (psi_noise)
 WINDOW = 100           # the drift check looks at the last WINDOW requests...
 MIN_WINDOW = 20        # ...and stays silent with fewer than this

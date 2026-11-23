@@ -40,7 +40,8 @@ VERSIONS = {
 
 N_VOTES = 3  # main answer + 2 votes; agreement = confidence (team decision 1)
 
-# PLACEHOLDER threshold. The team sets it from the test cases (decision 7).
+# Team decision (2026-11-23): a person reviews when the 3 Gemini answers have no
+# majority (agreement 1/3), when Gemini answers "unknown", and always for damage.
 REVIEW_BELOW_AGREEMENT = 0.67
 
 # DeepSolarEye file names carry irradiance and time:
@@ -78,9 +79,9 @@ def component_1(path: str) -> dict:
     return vision.describe(path, n_votes=N_VOTES)
 
 
-# When the photo does not carry irradiance and hour (any photo that is not from
-# DeepSolarEye), use typical values. PLACEHOLDER: the team decides whether the
-# user types them in, or the app takes them from the plant's sensors.
+# Irradiance and hour: the user can type them in the app (team decision, 2026-11-23).
+# If they don't, and the photo is not from DeepSolarEye (whose file names carry
+# them), the app uses these typical values and says so in its answer.
 DEFAULT_CONTEXT = {"irradiance": 0.5, "hour": 12.0}
 
 
@@ -127,7 +128,9 @@ def decide(c1: dict, c2: dict) -> tuple[str, str, bool]:
             f"below the {threshold:.1f}% at which cleaning pays off.", review)
 
 
-def run(raw_input: str) -> dict:
+def run(raw_input: str, irradiance: float | None = None, hour: float | None = None) -> dict:
+    """One request. `irradiance` (0-1) and `hour` (0-24) are optional: values the user
+    types win over the ones in a DeepSolarEye file name."""
     path = str(raw_input).strip()
     try:
         features = image_features(path)
@@ -144,6 +147,10 @@ def run(raw_input: str) -> dict:
         }
 
     context = context_from_name(path)
+    if irradiance is not None:
+        context["irradiance"] = min(max(float(irradiance), 0.0), 1.0)
+    if hour is not None:
+        context["hour"] = min(max(float(hour), 0.0), 24.0)
     try:
         c1 = component_1(path)
     except Exception as error:  # Gemini down, over the daily limit, or key missing
@@ -161,6 +168,9 @@ def run(raw_input: str) -> dict:
         }
     c2 = component_2(c1, context)
     action, decision, review = decide(c1, c2)
+    if c2.get("assumed"):
+        shown = ", ".join(f"{k} {v}" for k, v in c2["assumed"].items())
+        decision += f" (Assumed {shown}: type the real values for a better estimate.)"
     return {
         "input_summary": f"image {Path(path).name[:80]}",
         "features": features | {"agreement": c1["agreement"]},
