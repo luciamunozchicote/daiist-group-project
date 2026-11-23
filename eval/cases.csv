@@ -1,21 +1,21 @@
 id,input,kind,expected,baseline,notes
-c01,eval/inputs/cases/solar_Tue_Jun_27_14__0__6_2017_L_0.0362306839752_I_0.307831372549.jpg,normal,wait,,Limpia (pérdida real 3.6%)
-c02,eval/inputs/cases/solar_Tue_Jun_27_14__27__44_2017_L_0.0380838653378_I_0.426921568627.jpg,normal,wait,,Limpia (pérdida real 3.8%)
-c03,eval/inputs/cases/solar_Tue_Jun_27_14__56__27_2017_L_0.0175301076035_I_0.275156862745.jpg,normal,wait,,Limpia (pérdida real 1.8%)
-c04,eval/inputs/cases/solar_Tue_Jun_27_16__7__54_2017_L_0.00563027838599_I_0.263282352941.jpg,normal,wait,,Limpia (pérdida real 0.6%)
-c05,eval/inputs/cases/solar_Tue_Jun_27_16__26__31_2017_L_0.0265287466923_I_0.407549019608.jpg,normal,wait,,Limpia (pérdida real 2.7%)
-c06,eval/inputs/cases/solar_Tue_Jun_27_16__49__18_2017_L_0.00834338560515_I_0.117035294118.jpg,normal,wait,,Limpia; poca luz (pérdida real 0.8%)
-c07,eval/inputs/cases/solar_Tue_Jun_27_17__5__37_2017_L_0.00295128939828_I_0.136862745098.jpg,normal,wait,,Limpia; poca luz (pérdida real 0.3%)
-c08,eval/inputs/cases/solar_Thu_Jun_29_16__40__36_2017_L_0.00461152512359_I_0.106298039216.jpg,normal,wait,,Limpia; otro día (pérdida real 0.5%)
-c09,eval/inputs/cases/solar_Fri_Jun_30_11__2__17_2017_L_0.720677215552_I_0.616364705882.jpg,normal,clean,,Muy sucia; suciedad marrón (pérdida real 72.1%)
-c10,eval/inputs/cases/solar_Fri_Jun_30_13__18__19_2017_L_0.808609433369_I_0.336976470588.jpg,normal,clean,,"Muy sucia; marrón, menos manchas pero más pérdida (pérdida real 80.9%)"
-c11,eval/inputs/cases/solar_Tue_Jun_27_11__24__43_2017_L_0.825267438563_I_0.649956862745.jpg,normal,clean,,"Muy sucia; una mancha grande gris: pocas manchas, mucha pérdida (pérdida real 82.5%)"
-c12,eval/inputs/cases/solar_Thu_Jun_29_9__55__34_2017_L_0.633857787535_I_0.610905882353.jpg,normal,clean,,Muy sucia; suciedad blanca (pérdida real 63.4%)
-c13,eval/inputs/cases/solar_Wed_Jun_28_11__9__27_2017_L_0.627026853553_I_0.488780392157.jpg,normal,clean,,"Muy sucia; blanca, otro día (pérdida real 62.7%)"
-c14,eval/inputs/cases/solar_Wed_Jun_28_14__34__37_2017_L_0.658450183694_I_0.716239215686.jpg,normal,clean,,"Muy sucia; blanca, mucha luz (pérdida real 65.8%)"
-c15,eval/inputs/cases/solar_Wed_Jun_28_16__18__16_2017_L_0.662748450524_I_0.25688627451.jpg,normal,clean,,"Muy sucia; blanca, tarde (pérdida real 66.3%)"
-c16,eval/inputs/cases/solar_Thu_Jun_29_6__1__26_2017_L_0.103773584906_I_0.00332549019608.jpg,hard,clean,,Se ve muy sucia pero pierde poco porque casi no hay luz (pérdida real 10.4%)
-c17,eval/inputs/cases/solar_Thu_Jun_29_6__58__19_2017_L_0.658453596152_I_0.0334235294118.jpg,hard,clean,,Muy oscura; misma suciedad que la anterior una hora después y la pérdida se dispara (pérdida real 65.8%)
-c18,eval/inputs/cases/solar_Tue_Jun_27_6__2__39_2017_L_0.0830830830831_I_0.00391764705882.jpg,hard,wait,,Casi negra; parece limpia (pérdida real 8.3%)
-c19,eval/inputs/cases/solar_Thu_Jun_29_12__49__25_2017_L_0.077042251849_I_0.660650980392.jpg,hard,wait,,Mediodía; parece limpia pero pierde algo (pérdida real 7.7%)
-c20,eval/inputs/cases/solar_Tue_Jun_27_12__35__39_2017_L_0.0673077686003_I_0.494247058824.jpg,hard,wait,,Manchitas blancas sueltas; pérdida moderada (pérdida real 6.7%)
+c01,eval/inputs/cases/solar_Tue_Jun_27_14__0__6_2017_L_0.0362306839752_I_0.307831372549.jpg,normal,wait,,Clean (true loss 3.6%)
+c02,eval/inputs/cases/solar_Tue_Jun_27_14__27__44_2017_L_0.0380838653378_I_0.426921568627.jpg,normal,wait,,Clean (true loss 3.8%)
+c03,eval/inputs/cases/solar_Tue_Jun_27_14__56__27_2017_L_0.0175301076035_I_0.275156862745.jpg,normal,wait,,Clean (true loss 1.8%)
+c04,eval/inputs/cases/solar_Tue_Jun_27_16__7__54_2017_L_0.00563027838599_I_0.263282352941.jpg,normal,wait,,Clean (true loss 0.6%)
+c05,eval/inputs/cases/solar_Tue_Jun_27_16__26__31_2017_L_0.0265287466923_I_0.407549019608.jpg,normal,wait,,Clean (true loss 2.7%)
+c06,eval/inputs/cases/solar_Tue_Jun_27_16__49__18_2017_L_0.00834338560515_I_0.117035294118.jpg,normal,wait,,Clean; low light (true loss 0.8%)
+c07,eval/inputs/cases/solar_Tue_Jun_27_17__5__37_2017_L_0.00295128939828_I_0.136862745098.jpg,normal,wait,,Clean; low light (true loss 0.3%)
+c08,eval/inputs/cases/solar_Thu_Jun_29_16__40__36_2017_L_0.00461152512359_I_0.106298039216.jpg,normal,wait,,Clean; different day (true loss 0.5%)
+c09,eval/inputs/cases/solar_Fri_Jun_30_11__2__17_2017_L_0.720677215552_I_0.616364705882.jpg,normal,clean,,Very dirty; brown dirt (true loss 72.1%)
+c10,eval/inputs/cases/solar_Fri_Jun_30_13__18__19_2017_L_0.808609433369_I_0.336976470588.jpg,normal,clean,,"Very dirty; brown, fewer spots but more loss (true loss 80.9%)"
+c11,eval/inputs/cases/solar_Tue_Jun_27_11__24__43_2017_L_0.825267438563_I_0.649956862745.jpg,normal,clean,,"Very dirty; one large grey patch: few spots, high loss (true loss 82.5%)"
+c12,eval/inputs/cases/solar_Thu_Jun_29_9__55__34_2017_L_0.633857787535_I_0.610905882353.jpg,normal,clean,,Very dirty; white dirt (true loss 63.4%)
+c13,eval/inputs/cases/solar_Wed_Jun_28_11__9__27_2017_L_0.627026853553_I_0.488780392157.jpg,normal,clean,,"Very dirty; white, different day (true loss 62.7%)"
+c14,eval/inputs/cases/solar_Wed_Jun_28_14__34__37_2017_L_0.658450183694_I_0.716239215686.jpg,normal,clean,,"Very dirty; white, bright light (true loss 65.8%)"
+c15,eval/inputs/cases/solar_Wed_Jun_28_16__18__16_2017_L_0.662748450524_I_0.25688627451.jpg,normal,clean,,"Very dirty; white, afternoon (true loss 66.3%)"
+c16,eval/inputs/cases/solar_Thu_Jun_29_6__1__26_2017_L_0.103773584906_I_0.00332549019608.jpg,hard,clean,,Looks very dirty but loses little because there is almost no light (true loss 10.4%)
+c17,eval/inputs/cases/solar_Thu_Jun_29_6__58__19_2017_L_0.658453596152_I_0.0334235294118.jpg,hard,clean,,Very dark; same dirt as the previous one an hour later and the loss shoots up (true loss 65.8%)
+c18,eval/inputs/cases/solar_Tue_Jun_27_6__2__39_2017_L_0.0830830830831_I_0.00391764705882.jpg,hard,wait,,Almost black; looks clean (true loss 8.3%)
+c19,eval/inputs/cases/solar_Thu_Jun_29_12__49__25_2017_L_0.077042251849_I_0.660650980392.jpg,hard,wait,,Midday; looks clean but loses some power (true loss 7.7%)
+c20,eval/inputs/cases/solar_Tue_Jun_27_12__35__39_2017_L_0.0673077686003_I_0.494247058824.jpg,hard,wait,,Scattered small white spots; moderate loss (true loss 6.7%)
