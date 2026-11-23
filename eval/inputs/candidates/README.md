@@ -8,5 +8,6 @@ The true loss is in the file name, after `L_` (0-1): `..._L_0.0994_I_0.37.jpg` =
 The cleaning threshold from the € formula is 9.3 % (economics.py):
 above it the right action is `clean`, below it `wait`.
 
-Pick the ones you want as cases, move them to eval/inputs/cases/ renamed c01.jpg,
-c02.jpg... and write their row in eval/cases.csv. Delete this folder before the final tag.
+Pick the ones you want as cases, move them to eval/inputs/cases/ WITHOUT renaming
+them (the app reads irradiance and hour from the name), and write their row in
+eval/cases.csv. Delete this folder before the final tag.
