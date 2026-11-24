@@ -11,35 +11,37 @@
 
 1. Who uses it and what they decide
 
-It's used by the maintenance manager of a company that looks after several large solar plants in southern Spain.
-For each photo of a panel, they decide whether to clean it, repair it, or do nothing.
-The app makes a decision per photo. It doesn't prioritize between plants or between panels.
+It's used by the maintenance manager of an operations and maintenance (O&M) company that manages several medium or large solar plants in southern Spain.
+From a photo of a panel, they decide whether to clean it, repair it, or do nothing.
+The app decides per photo. It doesn't prioritize between panels or between plants.
 
 2. What happens today (baseline)
 
 Panels are cleaned on a fixed schedule, whether they need it or not.
-Or the company reacts once production drops.
-Monitoring warns that output is falling, but doesn't say why or which panel is affected, so someone has to be sent to check.
-In our evaluation, the baseline is "wait for the scheduled cleaning". We also compare against "always clean".
+Or the company reacts when production drops. Monitoring warns that output is falling, but doesn't say why or which panel, so someone has to be sent to check.
+In the evaluation, the baseline is "wait for the scheduled cleaning". We also compare against "always clean".
 
 3. Why the app is useful
 
-From one photo, it tells apart dirt, shade and damage, and each one needs a different fix.
-Shade can't be fixed by cleaning, and a crack needs a technician (for safety and warranty reasons).
+From one photo, it tells apart dirt, shade and damage, and each one is fixed differently.
+Shade can't be fixed by cleaning, and a crack needs a technician for safety and warranty reasons.
+In southern Spain there is dust, calima (Saharan dust haze) and rain-free summers, so dirt is a real problem.
 
 4. How we measure success
 
-Percentage of correct decisions across 45 test cases, compared to the baseline.
-Undetected damage. The target is 0.
+Percentage of correct decisions across 45 cases versus the baseline: the app is right 67% of the time, "wait" 42% and "always clean" 31%.
+Undetected damage. The target is 0, and the app caught 5 out of 5.
 Unnecessary cleanings.
 
 5. How much it's worth (in €)
 
 Cleaning is worth it when the energy lost until the next cleaning is worth more than the cost of cleaning.
-Assumptions: cleaning costs €0.09 per m², there are 30 days until the next cleaning, the panels are 21% efficient, and energy is worth €0.0325 per kWh.
-Result: the threshold is a 9.3% loss in output.
-Sensitivity: 8.3%–10.2% depending on the energy price; 18.7% if there are 15 days to the next cleaning, and 4.7% if there are 60.
-Example: a 50 MW plant with a 5% loss loses about €380 per day at that energy price.
+Team assumptions: cleaning costs €0.09 per m², there are 30 days until the next cleaning, the panels are 21% efficient, and energy is worth €0.0325 per kWh.
+Result: cleaning pays off if the loss is above 9.3%.
+Sensitivity: between 8.3% and 10.2% depending on the energy price; 18.7% with 15 days until cleaning and 4.7% with 60.
+Example: a 50 MW plant with a 5% loss loses about €380 per day at that price.
+Cost of using the app: about €0.00136 per photo. With 500 photos a day that's €0.68 a day, about €20 a month.
+Limit: the app decides per photo and doesn't prioritize between plants.
 
 ## Architecture
 
@@ -57,8 +59,6 @@ Example: a 50 MW plant with a 5% loss loses about €380 per day at that energy 
 - 15 shifted photos (228 KB) for the drift demo, DeepSolarEye photos altered on purpose (for example, haze).
 
 **Personal data.** The images show only panels, roofs and landscapes: no faces, names, number plates or addresses. The logger stores a text summary of the input, the outputs, versions, time, cost and the user's thumbs up/down, not the image itself. There is no personal data in the inputs or in the logs.
-
-
 
 ## Evaluation
 
@@ -93,26 +93,42 @@ The largest group is 11 of 15 failures (73%). In those cases the true loss is be
 
 **What we would fix first:** this group. We would add examples of nearly clean panels to Gemini's prompt, add a "lightly soiled" level, and send a case to a person when Gemini says "soiled" but reports 5% coverage or less. Fixing only these 11 would lift accuracy from 67% to up to 91% (41 of 45). The shadow and out-of-scope failures are only 4 cases, so we would handle them later, with a "shaded" option and a stricter check that the image is a PV panel.
 
-
 ## Decision
+1. Which cases go to a person
 
-Qué casos van a una persona
+Visible damage, always.
+Cases where Gemini's three answers have no majority.
+An "unknown" answer.
+Gemini not available.
 
-Daño visible, siempre.
-Las tres respuestas de Gemini sin mayoría.
-Respuesta "unknown".
-Gemini no disponible.
+2. How many cases per day
 
-2. Cuántos al día
+Of the 45 test cases, 7 go to a person (16%): the 5 damage cases, plus c23 and c34. Without the 5 damage cases, which were chosen on purpose, it's 2 out of 40 (5%).
+We assume 500 photos a day, a sample of areas across the plants. This is an assumption and can be changed.
+5% is about 25 cases a day, not counting damage.
 
-En los 45 casos van 7 (16%). Sin los 5 de daños, que están puestos a propósito, son 2 de 40 (5%).
-Tenéis que suponer cuántas fotos entran al día y justificarlo. Con N fotos, unas 0,05·N irían a una persona.
+3. Evidence in favor
 
-3. Evidencia a favor
+It's right in 30 of 45 cases (67%), versus 42% and 31%.
+Damage 5/5, and panels that needed cleaning 14/14.
+It costs about €0.00136 per photo and takes about 13.5 seconds.
 
-Acierta 67%, frente al 42% de esperar y al 31% de limpiar siempre.
-Daños 5/5. Limpiezas necesarias 14/14.
-Cuesta unos 0,00136 € por foto (unos 41 € al mes con 1.000 fotos al día) y tarda unos 13,5 segundos.
+4. Evidence against and limits
+
+11 of the 15 mistakes are nearly clean panels that the app tells you to clean. That costs money but doesn't put the panels at risk.
+Only 1 of those 15 mistakes reached a person, because Gemini is confidently wrong.
+In the 33 dirt cases, the advantage over "wait" is small (64% vs 58%).
+In euros per m², on the test days the model doesn't beat "always clean" (0.0282 vs 0.0259). In cross-validation it does (0.0182 vs 0.0208).
+The dataset photos are small (192×192 pixels) and have a non-commercial license. A real plant and drone photos would look different.
+
+5. Verdict: go with conditions
+
+Extra review: if Gemini says "dirty" and 5% or less of the surface is covered, it goes to a person.
+In the 1,000 labeled photos, that would be 34%. In 42% of those cases, waiting was the correct choice.
+With 500 photos a day, that could be up to about 170 cases. This is a rough maximum, because those photos aren't real traffic.
+Improve Gemini: add examples of nearly clean panels to the prompt, and add a "slightly dirty" level.
+Pilot at one plant: a person decides in parallel, and the results are compared.
+Move to a full "go": if in the pilot there are fewer unnecessary cleanings than with "wait" and no damage slips through.
 
 ## Bonus: reinforcement learning
 
