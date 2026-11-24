@@ -58,7 +58,7 @@ Limit: the app decides per photo and doesn't prioritize between plants.
 - 40 reference photos (812 KB) for the drift check, all from DeepSolarEye.
 - 15 shifted photos (228 KB) for the drift demo, DeepSolarEye photos altered on purpose (for example, haze).
 
-**Personal data.** The images show only panels, roofs and landscapes: no faces, names, number plates or addresses. The logger stores a text summary of the input, the outputs, versions, time, cost and the user's thumbs up/down, not the image itself. There is no personal data in the inputs or in the logs.
+**Personal data.** The images show only panels, roofs and landscapes: no faces, names, number plates or addresses. The logger stores only the image's size and type (for example "image 1024x768 px, jpg"), together with the outputs, versions, time, cost and the user's thumbs up/down; it does not store the photo or its file name. Two things happen outside the log: the photo is sent to Gemini to be analysed, and Gradio keeps a temporary copy for about one hour. There is no personal data in our test inputs or in the logs.
 
 ## Evaluation
 
