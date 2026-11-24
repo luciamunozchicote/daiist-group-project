@@ -80,7 +80,9 @@ def on_refresh():
     return alert_text, monitor.summary(logs), monitor.quality(logs), drift_table
 
 
-with gr.Blocks(title=TITLE) as demo:
+# Gradio keeps a temporary copy of each uploaded photo on the server's disk:
+# delete copies older than 1 hour, every hour. The logs never store the photo.
+with gr.Blocks(title=TITLE, delete_cache=(3600, 3600)) as demo:
     gr.Markdown(f"# {TITLE}\n{DESCRIPTION}")
     if missing := env.missing():
         gr.Markdown(f"⚠️ **Missing environment variables:** {', '.join(missing)}. See SETUP.md.")

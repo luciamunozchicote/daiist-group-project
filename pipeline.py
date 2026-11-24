@@ -129,6 +129,13 @@ def decide(c1: dict, c2: dict) -> tuple[str, str, bool]:
             f"below the {threshold:.1f}% at which cleaning pays off.", review)
 
 
+def _summary(path: str) -> str:
+    """What the log keeps about the input: size and type only. Never the photo,
+    and not the file name either (a name could contain personal data)."""
+    with Image.open(path) as image:
+        return f"image {image.width}x{image.height} px, {Path(path).suffix.lower().lstrip('.') or 'unknown type'}"
+
+
 def run(raw_input: str, irradiance: float | None = None, hour: float | None = None) -> dict:
     """One request. `irradiance` (0-1) and `hour` (0-24) are optional: values the user
     types win over the ones in a DeepSolarEye file name."""
@@ -160,7 +167,7 @@ def run(raw_input: str, irradiance: float | None = None, hour: float | None = No
     except Exception as error:  # Gemini down, over the daily limit, or key missing
         reason = getattr(error, "code", None) or type(error).__name__
         return {
-            "input_summary": f"image {Path(path).name[:80]}",
+            "input_summary": _summary(path),
             "features": features,  # no agreement: NaN would break the Postgres log (jsonb)
             "outputs": {"component_1": {"error": f"Gemini unavailable ({reason})"}, "component_2": None,
                         "context": context, "action": "unavailable",
@@ -178,7 +185,7 @@ def run(raw_input: str, irradiance: float | None = None, hour: float | None = No
         shown = ", ".join(f"{k} {v}" for k, v in c2["assumed"].items())
         decision += f" (Assumed {shown}: type the real values for a better estimate.)"
     return {
-        "input_summary": f"image {Path(path).name[:80]}",
+        "input_summary": _summary(path),
         "features": features | {"agreement": c1["agreement"]},
         "outputs": {"component_1": c1, "component_2": c2, "context": context,
                     "action": action, "decision": decision, "timing_s": timing},
