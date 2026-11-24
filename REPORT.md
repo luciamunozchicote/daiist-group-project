@@ -8,7 +8,6 @@
 *At most about 3,000 words, tables excluded. Members and who did what go in CONTRIBUTIONS.md.*
 
 ## Business case
-
 1. Who uses it and what they decide
 
 It's used by the maintenance manager of an operations and maintenance (O&M) company that manages several medium or large solar plants in southern Spain.
@@ -48,7 +47,6 @@ Limit: the app decides per photo and doesn't prioritize between plants.
 *The two components and how one feeds the other: a diagram plus a short walk-through of one request from input to output. Which models or APIs, and why those. What you reused from assignments 1–3, and whose it was.*
 
 ## Data
-
 **Component 1 (Gemini vision).** It is not trained: it receives a photo and returns a structured description (soiled or clean, number of spots, share of the panel covered, how the dirt is spread, and whether the image shows a solar panel).
 
 **Component 2 (loss model).** It is trained on 1,000 photos from DeepSolarEye (Mehta et al., WACV 2018, licence CC BY-NC-SA, https://deep-solar-eye.github.io). Each photo comes with its measured power loss and the irradiance and time of the shot. Gemini described all 1,000 photos, and those descriptions plus the context are the model's inputs. We split by day: 768 photos for training and 232 for testing (27–30 June 2017), so the test photos come from days the model never saw. The photos are not in the repository, only the labels (`data/deepsolareye_gemini.csv`); they must be downloaded from the dataset's site. The "non-commercial" licence is fine for this coursework, but a real product would need another dataset or permission.
@@ -63,16 +61,82 @@ Limit: the app decides per photo and doesn't prioritize between plants.
 ## Evaluation
 
 ### Components
+**Component 1 – Vision (Gemini).**
+- Metric: accuracy, precision and recall of the "soiled" label against the real power
+  loss measured in DeepSolarEye (a photo truly needs cleaning if its loss is above 9.3%)
+- Test data: 1,000 DeepSolarEye photos, one Gemini call per photo at temperature 0
+- Result: accuracy 71.4%, precision 0.73, recall 0.81
+  (source: models/component1_report.json)
 
-*Each component on its own: the metric, the result, the test data and its size.*
+|  | Gemini: not soiled | Gemini: soiled |
+|---|---|---|
+| Real loss < 9.3% (409 photos) | 236 ✅ | 173 ❌ |
+| Real loss > 9.3% (591 photos) | 113 ❌ | 478 ✅ |
+
+Gemini finds 81% of the panels that really need cleaning, and the dirtier the panel,
+the better it detects it: it says "soiled" for 40% of photos with 0–5% loss, but for
+90% of those with 50–100% loss. Its main weakness is the opposite error: it calls
+42% of nearly clean panels (173 of 409) soiled. This is the same failure we see in
+the end-to-end evaluation, where 11 of the 15 errors are nearly clean panels that the
+app wants to clean. Note that this evaluation uses a single call per photo, while the
+app makes three and uses their agreement to send unsure cases to a person.
+
+**Component 2 – Power-loss regression (ridge).**
+- Metric: mean absolute error (MAE), in percentage points of power loss
+- Test data: 232 photos from 4 held-out days, trained on 768 (see Data)
+- Result: MAE 17.4 pts (source: models/component2_report.json)
+
+| Features | MAE (pts) | Decision accuracy |
+|---|---|---|
+| None (always predict the mean) | 27.2 | 51.7% |
+| Context only (irradiance, hour) | 26.0 | 51.7% |
+| Gemini only | 18.2 | 51.7% |
+| **Gemini + context (selected)** | **17.4** | **61.6%** |
+
+Without Gemini's description, the regression barely beats predicting the average loss
+(26.0 vs 27.2 pts). With it, the error drops by about a third. The first component is
+what gives the second one its information.
+
+We chose ridge over random forest (test MAE 16.3) because the choice was made on
+cross-validation by day, where ridge had the best decision accuracy (0.69 vs 0.66),
+not on the test set. It is also simpler to explain.
+
+Two limitations remain. First, 80% of the errors are below 25.7 pts, which is why the
+app shows a range and not a single number. Second, the learning curve is flat after
+about 100 photos, so more training data would not help: the limit is what Gemini
+describes. On the 4 test days, the model makes more correct decisions than "always
+clean" (61.6% vs 51.7%) but does not lose less money (regret €0.028 vs €0.026 per m²).
+On cross-validation it does (€0.018 vs €0.021).
 
 ### End to end
 
 *How you wrote `eval/cases.csv` (counts by kind, two examples). Results against the baseline. Where the output is free text: the judge's rubric and your agreement with it on your own labels.*
 
 ### Cost and latency
+| Component | Tokens | € per photo | Seconds |
+|---|---|---|---|
+| 1 – Gemini (3 calls) | ~4,100 (~1,370 per call) | 0.00136 | ~3.3 |
+| 2 – Ridge | 0 | ~0 | ~0.001 |
+| **Total** | **~4,100** | **0.00136** | **median 13.5 (evaluation)** |
 
-*Per request: tokens, euros and seconds, for each component and in total. What it would cost per month at the volume in your business case.*
+Monthly cost at the business-case volume: 500 photos/day (about 15,000 per month)
+× €0.00136 = about €0.68 per day, **around €20 per month**.
+
+Almost all the cost and time come from Gemini. We call it three times per photo: once
+at temperature 0 for the main answer and twice at 0.8, so that disagreement between the
+answers tells us when Gemini is unsure. Those cases go to a person. The ridge model runs
+on our server at practically no cost; only the first request takes ~1.7 s to load it.
+
+Gemini needs about 3.3 s, but the median in the evaluation was 13.5 s. The difference
+comes from queuing and cold starts on Render's free plan: in our own tests on the live
+app, the first request after a pause took up to 58 s. For a maintenance manager who
+checks panels a few times a day, this is acceptable. For real-time use, a paid plan
+would be needed.
+
+About €20 a month is negligible next to the decision it supports: one correct cleaning
+decision is worth around €0.31 per m² in our example, many times the cost of the photo.
+To make the app faster and cheaper we could call Gemini once instead of three times,
+but we would lose the confidence measure that decides which cases a person reviews.
 
 ## Operations
 
