@@ -131,14 +131,18 @@ at temperature 0 for the main answer and twice at 0.8, so that disagreement betw
 answers tells us when Gemini is unsure. Those cases go to a person. The ridge model runs
 on our server at practically no cost; only the first request takes ~1.7 s to load it.
 
-Gemini needs about 3.3 s, but the median in the evaluation was 13.5 s. The difference
-comes from queuing and cold starts on Render's free plan: in our own tests on the live
-app, the first request after a pause took up to 58 s. For a maintenance manager who
+Gemini needs about 3.3 s, but the median in the evaluation was 13.5 s (maximum 58 s).
+The evaluation ran locally, not on Render, so the gap comes from Gemini's free tier:
+when requests come too fast it answers 429 (too many requests), and our code waits 5,
+10 or 20 s before retrying (`vision.py`). Separately, the live app on Render's free plan
+sleeps when idle, and the first request after a pause takes about 50 s to wake it up.
+For a maintenance manager who
 checks panels a few times a day, this is acceptable. For real-time use, a paid plan
 would be needed.
 
-About €20 a month is negligible next to the decision it supports: one correct cleaning
-decision is worth around €0.31 per m² in our example, many times the cost of the photo.
+About €20 a month is negligible next to the decision it supports: for a panel losing 25%,
+cleaning gains about €0.15 per m² before the next scheduled cleaning (`economics.py`),
+many times the cost of the photo.
 To make the app faster and cheaper we could call Gemini once instead of three times,
 but we would lose the confidence measure that decides which cases a person reviews.
 
@@ -159,7 +163,7 @@ The product failed on 15 of the 45 cases (67% correct). All 15 start at componen
 
 The largest group is 11 of 15 failures (73%). In those cases the true loss is below the 9.3% at which cleaning pays off (0.3% to 9.2% on the DeepSolarEye photos), so the correct action was to wait. Gemini reports only 1–5% of the panel covered, yet it still labels the panel "soiled", and the loss model turns that label into an estimated loss of 17–31%. The result is an unnecessary cleaning order. This costs money but does not put the panels at risk, and one of the 11 (c23) was sent to a person because Gemini's three votes disagreed.
 
-**What we would fix first:** this group. We would add examples of nearly clean panels to Gemini's prompt, add a "lightly soiled" level, and send a case to a person when Gemini says "soiled" but reports 5% coverage or less. Fixing only these 11 would lift accuracy from 67% to up to 91% (41 of 45). The shadow and out-of-scope failures are only 4 cases, so we would handle them later, with a "shaded" option and a stricter check that the image is a PV panel.
+**What we would fix first:** this group. We would add examples of nearly clean panels to Gemini's prompt, add a "lightly soiled" level, and send a case to a person when Gemini says "soiled" but reports 5% coverage or less. Fixing only these 11 would lift accuracy from 67% to up to 91% (41 of 45). The shadow and out-of-scope failures are only 4 cases, so we would handle them later, with a clearer definition of "shaded" in Gemini's prompt (the label exists, but Gemini chose "soiled") and a stricter check that the image is a PV panel.
 
 ## Decision
 1. Which cases go to a person
