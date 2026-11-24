@@ -1,0 +1,70 @@
+{
+ "what": "Gemini label 'soiled' vs measured loss above the cleaning threshold",
+ "data": "data/deepsolareye_gemini.csv (1 Gemini call per photo, temperature 0)",
+ "n_photos": 1000,
+ "threshold_loss": 0.0934,
+ "accuracy": 0.714,
+ "classification_report": {
+  "below threshold": {
+   "precision": 0.6762177650429799,
+   "recall": 0.5770171149144254,
+   "f1-score": 0.6226912928759895,
+   "support": 409.0
+  },
+  "above threshold": {
+   "precision": 0.7342549923195084,
+   "recall": 0.8087986463620981,
+   "f1-score": 0.7697262479871175,
+   "support": 591.0
+  },
+  "accuracy": 0.714,
+  "macro avg": {
+   "precision": 0.7052363786812441,
+   "recall": 0.6929078806382618,
+   "f1-score": 0.6962087704315535,
+   "support": 1000.0
+  },
+  "weighted avg": {
+   "precision": 0.7105177663634084,
+   "recall": 0.714,
+   "f1-score": 0.7095889513466661,
+   "support": 1000.0
+  }
+ },
+ "confusion_matrix": {
+  "rows": "truth below/above",
+  "columns": "Gemini not soiled/soiled",
+  "values": [
+   [
+    236,
+    173
+   ],
+   [
+    113,
+    478
+   ]
+  ]
+ },
+ "label_share_by_loss_band": {
+  "0-5%": {
+   "clean": 0.596,
+   "soiled": 0.404,
+   "visible_damage": 0.0
+  },
+  "5-20%": {
+   "clean": 0.417,
+   "soiled": 0.579,
+   "visible_damage": 0.004
+  },
+  "20-50%": {
+   "clean": 0.243,
+   "soiled": 0.757,
+   "visible_damage": 0.0
+  },
+  "50-100%": {
+   "clean": 0.1,
+   "soiled": 0.9,
+   "visible_damage": 0.0
+  }
+ }
+}

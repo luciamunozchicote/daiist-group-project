@@ -80,6 +80,21 @@ def component_1_metrics() -> None:
     bands = pd.cut(data["loss"], [0, 0.05, 0.2, 0.5, 1.01], right=False,
                    labels=["0-5%", "5-20%", "20-50%", "50-100%"])
     print(pd.crosstab(bands, data["label"], normalize="index").round(2).to_string())
+    report = {
+        "what": "Gemini label 'soiled' vs measured loss above the cleaning threshold",
+        "data": "data/deepsolareye_gemini.csv (1 Gemini call per photo, temperature 0)",
+        "n_photos": int(len(data)),
+        "threshold_loss": round(float(economics.CLEAN_IF_LOSS_ABOVE), 4),
+        "accuracy": round(float((truth == said_soiled).mean()), 3),
+        "classification_report": classification_report(
+            truth, said_soiled, target_names=["below threshold", "above threshold"],
+            output_dict=True, zero_division=0),
+        "confusion_matrix": {"rows": "truth below/above", "columns": "Gemini not soiled/soiled",
+                             "values": confusion_matrix(truth, said_soiled).tolist()},
+        "label_share_by_loss_band": pd.crosstab(bands, data["label"], normalize="index").round(3).to_dict("index"),
+    }
+    (ROOT / "models" / "component1_report.json").write_text(json.dumps(report, indent=1, default=str))
+    print("Saved models/component1_report.json")
 
 
 def component_2_metrics() -> None:
