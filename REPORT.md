@@ -9,7 +9,37 @@
 
 ## Business case
 
-*Who uses it, which decision or task it supports, what happens today without it (the baseline), the success metric, and a rough value in euros with the assumptions behind it.*
+1. Who uses it and what they decide
+
+It's used by the maintenance manager of a company that looks after several large solar plants in southern Spain.
+For each photo of a panel, they decide whether to clean it, repair it, or do nothing.
+The app makes a decision per photo. It doesn't prioritize between plants or between panels.
+
+2. What happens today (baseline)
+
+Panels are cleaned on a fixed schedule, whether they need it or not.
+Or the company reacts once production drops.
+Monitoring warns that output is falling, but doesn't say why or which panel is affected, so someone has to be sent to check.
+In our evaluation, the baseline is "wait for the scheduled cleaning". We also compare against "always clean".
+
+3. Why the app is useful
+
+From one photo, it tells apart dirt, shade and damage, and each one needs a different fix.
+Shade can't be fixed by cleaning, and a crack needs a technician (for safety and warranty reasons).
+
+4. How we measure success
+
+Percentage of correct decisions across 45 test cases, compared to the baseline.
+Undetected damage. The target is 0.
+Unnecessary cleanings.
+
+5. How much it's worth (in €)
+
+Cleaning is worth it when the energy lost until the next cleaning is worth more than the cost of cleaning.
+Assumptions: cleaning costs €0.09 per m², there are 30 days until the next cleaning, the panels are 21% efficient, and energy is worth €0.0325 per kWh.
+Result: the threshold is a 9.3% loss in output.
+Sensitivity: 8.3%–10.2% depending on the energy price; 18.7% if there are 15 days to the next cleaning, and 4.7% if there are 60.
+Example: a 50 MW plant with a 5% loss loses about €380 per day at that energy price.
 
 ## Architecture
 
@@ -66,7 +96,23 @@ The largest group is 11 of 15 failures (73%). In those cases the true loss is be
 
 ## Decision
 
-*Which cases go to a person: the rule, and how many cases a day that would be. Go / no-go / go with conditions: the conditions, and the evidence behind them.*
+Qué casos van a una persona
+
+Daño visible, siempre.
+Las tres respuestas de Gemini sin mayoría.
+Respuesta "unknown".
+Gemini no disponible.
+
+2. Cuántos al día
+
+En los 45 casos van 7 (16%). Sin los 5 de daños, que están puestos a propósito, son 2 de 40 (5%).
+Tenéis que suponer cuántas fotos entran al día y justificarlo. Con N fotos, unas 0,05·N irían a una persona.
+
+3. Evidencia a favor
+
+Acierta 67%, frente al 42% de esperar y al 31% de limpiar siempre.
+Daños 5/5. Limpiezas necesarias 14/14.
+Cuesta unos 0,00136 € por foto (unos 41 € al mes con 1.000 fotos al día) y tarda unos 13,5 segundos.
 
 ## Bonus: reinforcement learning
 
