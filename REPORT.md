@@ -17,7 +17,18 @@
 
 ## Data
 
-*Where each component's data comes from, with links, licences and sizes. Confirm that there is no personal data in your inputs or logs.*
+**Component 1 (Gemini vision).** It is not trained: it receives a photo and returns a structured description (soiled or clean, number of spots, share of the panel covered, how the dirt is spread, and whether the image shows a solar panel).
+
+**Component 2 (loss model).** It is trained on 1,000 photos from DeepSolarEye (Mehta et al., WACV 2018, licence CC BY-NC-SA, https://deep-solar-eye.github.io). Each photo comes with its measured power loss and the irradiance and time of the shot. Gemini described all 1,000 photos, and those descriptions plus the context are the model's inputs. We split by day: 768 photos for training and 232 for testing (27–30 June 2017), so the test photos come from days the model never saw. The photos are not in the repository, only the labels (`data/deepsolareye_gemini.csv`); they must be downloaded from the dataset's site. The "non-commercial" licence is fine for this coursework, but a real product would need another dataset or permission.
+
+**Evaluation and monitoring sets.**
+- 45 end-to-end cases (5.9 MB): 23 DeepSolarEye photos and 22 photos from Flickr and Wikimedia Commons under CC BY 2.0, CC BY-SA 2.0 or CC BY-SA 4.0. Author, licence and link for each are in `eval/inputs/cases/SOURCES.md`.
+- 40 reference photos (812 KB) for the drift check, all from DeepSolarEye.
+- 15 shifted photos (228 KB) for the drift demo, DeepSolarEye photos altered on purpose (for example, haze).
+
+**Personal data.** The images show only panels, roofs and landscapes: no faces, names, number plates or addresses. The logger stores a text summary of the input, the outputs, versions, time, cost and the user's thumbs up/down, not the image itself. There is no personal data in the inputs or in the logs.
+
+
 
 ## Evaluation
 
@@ -39,7 +50,19 @@
 
 ## Failures
 
-*Failed end-to-end cases grouped by cause (which component, or the hand-off between them), with counts, and what you would fix first.*
+The product failed on 15 of the 45 cases (67% correct). All 15 start at component 1 (Gemini), and for most of them component 2 then amplifies the error.
+
+| Cause | Cases | Count |
+|---|---|---|
+| Nearly clean panel seen as soiled | c01–c07, c20, c21, c23, c37 | 11 |
+| Shadow mistaken for dirt (expected: check shade) | c41, c42 | 2 |
+| Polycrystalline texture mistaken for stains | c38 | 1 |
+| Solar water heater taken for a panel | c29 | 1 |
+
+The largest group is 11 of 15 failures (73%). In those cases the true loss is below the 9.3% at which cleaning pays off (0.3% to 9.2% on the DeepSolarEye photos), so the correct action was to wait. Gemini reports only 1–5% of the panel covered, yet it still labels the panel "soiled", and the loss model turns that label into an estimated loss of 17–31%. The result is an unnecessary cleaning order. This costs money but does not put the panels at risk, and one of the 11 (c23) was sent to a person because Gemini's three votes disagreed.
+
+**What we would fix first:** this group. We would add examples of nearly clean panels to Gemini's prompt, add a "lightly soiled" level, and send a case to a person when Gemini says "soiled" but reports 5% coverage or less. Fixing only these 11 would lift accuracy from 67% to up to 91% (41 of 45). The shadow and out-of-scope failures are only 4 cases, so we would handle them later, with a "shaded" option and a stricter check that the image is a PV panel.
+
 
 ## Decision
 
