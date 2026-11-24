@@ -24,6 +24,7 @@ eval/cases.csv uses paths like eval/inputs/c01.jpg).
 """
 
 import re
+import time
 from pathlib import Path
 
 import numpy as np
@@ -146,13 +147,16 @@ def run(raw_input: str, irradiance: float | None = None, hour: float | None = No
             "cost_eur": 0.0,
         }
 
+    timing = {}
     context = context_from_name(path)
     if irradiance is not None:
         context["irradiance"] = min(max(float(irradiance), 0.0), 1.0)
     if hour is not None:
         context["hour"] = min(max(float(hour), 0.0), 24.0)
     try:
-        c1 = component_1(path)
+        started = time.perf_counter()
+        c1 = component_1(path)  # 3 separate Gemini calls, one after the other
+        timing["component_1"] = round(time.perf_counter() - started, 3)
     except Exception as error:  # Gemini down, over the daily limit, or key missing
         reason = getattr(error, "code", None) or type(error).__name__
         return {
@@ -166,7 +170,9 @@ def run(raw_input: str, irradiance: float | None = None, hour: float | None = No
             "tokens": 0,
             "cost_eur": 0.0,
         }
+    started = time.perf_counter()
     c2 = component_2(c1, context)
+    timing["component_2"] = round(time.perf_counter() - started, 4)
     action, decision, review = decide(c1, c2)
     if c2.get("assumed"):
         shown = ", ".join(f"{k} {v}" for k, v in c2["assumed"].items())
@@ -175,7 +181,7 @@ def run(raw_input: str, irradiance: float | None = None, hour: float | None = No
         "input_summary": f"image {Path(path).name[:80]}",
         "features": features | {"agreement": c1["agreement"]},
         "outputs": {"component_1": c1, "component_2": c2, "context": context,
-                    "action": action, "decision": decision},
+                    "action": action, "decision": decision, "timing_s": timing},
         "versions": VERSIONS,
         "review": review,
         "tokens": c1["tokens"],

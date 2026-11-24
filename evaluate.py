@@ -147,6 +147,10 @@ def main() -> None:
     print(f"Tokens: mean {results['tokens'].mean():.0f}. Euros (paid Gemini price): mean €{results['cost_eur'].mean():.5f}, "
           f"€{1000 * results['cost_eur'].mean():.2f} per 1,000 photos. "
           f"Seconds: median {results['latency_s'].median():.1f}, max {results['latency_s'].max():.1f}.")
+    timing = results["outputs"].apply(lambda o: o.get("timing_s") or {}).apply(pd.Series)
+    if not timing.empty:
+        parts = ", ".join(f"{c} median {timing[c].median():.2f} s" for c in timing.columns)
+        print(f"Seconds by component: {parts} (component 1 = 3 Gemini calls in a row).")
     print(f"Total cost of this run: €{results['cost_eur'].sum():.4f}, {results['tokens'].sum()} tokens.")
 
     component_1_metrics()

@@ -11,6 +11,7 @@ import os
 import time
 
 import gradio as gr
+import pandas as pd
 
 import env
 import logbook
@@ -71,7 +72,11 @@ def on_refresh():
     if reference is not None and len(logs) >= monitor.MIN_WINDOW:
         drift_table = monitor.drift(reference, monitor.live_features(logs))
     else:
-        drift_table = monitor.drift(reference, reference.head(0)) if reference is not None else None
+        # With fewer requests the chance-level PSI is huge (threshold ~8 with 1 request),
+        # so the check stays off instead of showing a meaningless threshold.
+        drift_table = pd.DataFrame(columns=["feature", "psi", "threshold", "alert"])
+        alert_text += (f"\n\nDrift check starts after {monitor.MIN_WINDOW} requests "
+                       f"(now {len(logs)}).")
     return alert_text, monitor.summary(logs), monitor.quality(logs), drift_table
 
 
