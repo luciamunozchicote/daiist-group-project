@@ -1,47 +1,21 @@
 # Group Assignment Report
 
-- **Team** (Blackboard group name):
+- **Team** (Blackboard group name): Group 8
 - **Section**: BBADBA 5B
 - **App URL** (on Render): https://solar-triage.onrender.com
 - **Final commit** (tag `final`):
 
-*At most about 3,000 words, tables excluded. Members and who did what go in CONTRIBUTIONS.md.*
-
 ## Business case
 
-1. Who uses it and what they decide
+**Who uses it.** The maintenance manager of an operations and maintenance (O&M) company that runs several medium or large solar plants in southern Spain. From a photo of a panel, they decide whether to clean it, repair it or do nothing. The app decides per photo; it does not prioritise between panels or plants.
 
-It's used by the maintenance manager of an operations and maintenance (O&M) company that manages several medium or large solar plants in southern Spain.
-From a photo of a panel, they decide whether to clean it, repair it, or do nothing.
-The app decides per photo. It doesn't prioritize between panels or between plants.
+**What happens today (baseline).** Panels are cleaned on a fixed schedule, whether they need it or not, or the company reacts when production drops: monitoring shows that output is falling, but not why or on which panel, so someone has to go and check. In the evaluation the baseline is "wait for the scheduled cleaning"; we also compare against "always clean".
 
-2. What happens today (baseline)
+**Why it is useful.** From one photo it tells apart dirt, shade and damage, which are fixed differently: cleaning does not fix shade, and a crack needs a technician for safety and warranty reasons. In southern Spain, dust, calima (Saharan dust haze) and rain-free summers make dirt a real problem.
 
-Panels are cleaned on a fixed schedule, whether they need it or not.
-Or the company reacts when production drops. Monitoring warns that output is falling, but doesn't say why or which panel, so someone has to be sent to check.
-In the evaluation, the baseline is "wait for the scheduled cleaning". We also compare against "always clean".
+**Success metric.** Share of correct decisions on 45 cases against the baseline (the app 67%, "wait" 42%, "always clean" 31%); undetected damage, with a target of 0 (the app caught 5 of 5); and unnecessary cleanings.
 
-3. Why the app is useful
-
-From one photo, it tells apart dirt, shade and damage, and each one is fixed differently.
-Shade can't be fixed by cleaning, and a crack needs a technician for safety and warranty reasons.
-In southern Spain there is dust, calima (Saharan dust haze) and rain-free summers, so dirt is a real problem.
-
-4. How we measure success
-
-Percentage of correct decisions across 45 cases versus the baseline: the app is right 67% of the time, "wait" 42% and "always clean" 31%.
-Undetected damage. The target is 0, and the app caught 5 out of 5.
-Unnecessary cleanings.
-
-5. How much it's worth (in €)
-
-Cleaning is worth it when the energy lost until the next cleaning is worth more than the cost of cleaning.
-Team assumptions: cleaning costs €0.09 per m², there are 30 days until the next cleaning, the panels are 21% efficient, and energy is worth €0.0325 per kWh.
-Result: cleaning pays off if the loss is above 9.3%.
-Sensitivity: between 8.3% and 10.2% depending on the energy price; 18.7% with 15 days until cleaning and 4.7% with 60.
-Example: a 50 MW plant with a 5% loss loses about €380 per day at that price.
-Cost of using the app: about €0.00136 per photo. With 500 photos a day that's €0.68 a day, about €20 a month.
-Limit: the app decides per photo and doesn't prioritize between plants.
+**Value in euros.** Cleaning pays off when the energy lost until the next scheduled cleaning is worth more than the cleaning. Our assumptions: cleaning costs €0.09 per m², 30 days to the next cleaning, 21%-efficient panels, and energy at €0.0325 per kWh. Cleaning pays off above a **9.3% loss**. Sensitivity: 8.3–10.2% depending on the energy price; 18.7% with 15 days to the next cleaning and 4.7% with 60. For scale, a 50 MW plant losing 5% loses about €380 a day. The app costs about €20 a month (see Cost and latency).
 
 ## Architecture
 
@@ -59,59 +33,45 @@ flowchart LR
 
 **One request, step by step** (`pipeline.run()`):
 
-1. The user uploads a photo in the App tab (optionally with irradiance 0–1 and hour 0–24). Six numbers that describe the image are computed for the drift check.
-2. **Component 1** (`vision.py`) sends the photo to Gemini three times: one main answer at temperature 0 and two votes at temperature 0.8. It returns a JSON with `label` (clean / soiled / shaded / visible_damage), `n_spots`, `covered_fraction`, `spread` and `is_solar_panel`. `agreement` is the share of the three answers that match the main label.
-3. **Component 2** (`component2.py`) runs only when the label is `soiled`, because it was trained only on soiling losses. It turns component 1's answer into numeric columns, adds irradiance and hour (0.5 and 12:00 if unknown, and the answer says so), and predicts the % power loss with a range that covers 80% of its test errors.
-4. **`decide()`** turns both outputs into an action: `out_of_scope`, `technician` (damage), `check_shade`, `no_action`, or, for soiled panels, `clean` if the loss is above the 9.3% break-even from `economics.py` and `wait` otherwise. It also sets the review flag (damage, no majority among the three answers, `unknown`, or Gemini unavailable).
+1. The user uploads a photo (optionally with irradiance 0–1 and hour 0–24). Six numbers describing the image are computed for the drift check.
+2. **Component 1** (`vision.py`) sends the photo to Gemini three times: a main answer at temperature 0 and two votes at 0.8. It returns JSON with `label` (clean / soiled / shaded / visible_damage), `n_spots`, `covered_fraction`, `spread` and `is_solar_panel`. `agreement` is the share of the three answers that match the main label.
+3. **Component 2** (`component2.py`) runs only when the label is `soiled`, because it was trained only on soiling losses. It adds irradiance and hour (0.5 and 12:00 if unknown, and the answer says so) and predicts the % power loss with a range that covers 80% of its test errors.
+4. **`decide()`** turns both outputs into an action: `out_of_scope`, `technician` (damage), `check_shade`, `no_action`, or, for soiled panels, `clean` above the 9.3% break-even (`economics.py`) and `wait` below. It also sets the review flag.
 5. The app shows the decision, latency and cost, logs the request and asks for 👍/👎.
 
-**Why these models.** For component 1 we chose Gemini because it analyses images without us training a vision model. A YOLO model would have needed photos with dirt, shade and damage marked with boxes, which we did not have; the Roboflow datasets are loose internet photos from other cameras, with no measured power loss. A local vision model would not fit in the 512 MB of Render's free plan either. In one call, Gemini classifies the panel into four labels, says whether the photo shows a panel at all, and returns numbers (spots, % covered) in JSON, which are exactly component 2's input. We use Flash-Lite, the cheapest and fastest Gemini model (about €0.0014 per photo for three calls), and pin the model and prompt versions so results can be repeated. Its drawbacks are the cost per image, the latency (median 13.5 s in the evaluation), a daily quota on an external API, and confident mistakes: it often sees dirt on nearly clean panels.
+**Why these models.** Component 1 is Gemini because it analyses images without training a vision model. A YOLO model would have needed photos with dirt, shade and damage marked with boxes, which we did not have; the Roboflow datasets are loose internet photos with no measured power loss, and a local vision model would not fit in Render's 512 MB free plan. In one answer Gemini classifies the panel, says whether the photo shows a panel at all, and returns numbers (spots, % covered) that are exactly component 2's input. Flash-Lite is the cheapest and fastest Gemini model, and we pin the model and prompt versions so results can be repeated. Its drawbacks are latency, a daily quota on an external API, and confident mistakes on nearly clean panels.
 
-For component 2 we chose a tabular regression because Gemini alone cannot say *how much* energy a panel loses, and without a percentage we cannot compare it with the 9.3% break-even. DeepSolarEye gives the measured loss as a continuous number, so regression is the natural fit. We compared a mean baseline, ridge, random forest and gradient boosting, each with and without Gemini's features, and chose **ridge** for its clean/wait decision accuracy in day-by-day cross-validation (0.69, the best). Random forest and gradient boosting had a slightly lower test error (about 16 vs 17 points) but did worse across days; with only seven inputs, a simple model is enough and easy to explain. The connection pays off: without Gemini's features the error is about 26 points, no better than predicting the mean; with them it drops to about 17.
+Component 2 is a regression because Gemini cannot say *how much* energy a panel loses, and we need a percentage to compare with the 9.3% break-even; DeepSolarEye gives the measured loss as a continuous number. We compared a mean baseline, ridge, random forest and gradient boosting, with and without Gemini's features, and chose **ridge** for its decision accuracy in day-by-day cross-validation (0.69, the best). The tree models had a slightly lower test error (about 16 vs 17 points) but did worse across days, and with seven inputs a simple model is enough and easy to explain.
 
-**What we reused.** No code was copied from assignments 1–3. `app.py`, `pipeline.py`, `monitor.py`, `evaluate.py`, `logbook.py`, `check.py`, `main.py` and `env.py` come from the course template and were adapted (components, decision rule, smoothed PSI, metrics). `vision.py`, `component2.py`, `economics.py` and `tools/` were written for this project by Lucía. We reused ideas from Lucía's assignments: from assignment 1, a linear model on tabular data compared against a reference model (component 2); from assignment 2, choosing a threshold by the cost of being wrong rather than by accuracy (the 9.3% euro threshold); from assignment 3, evaluating with hand-written cases by kind (normal, hard, review, out of scope) and letting the system say "not a panel" or "a person will check" instead of guessing.
+**What we reused.** No code was copied from assignments 1–3. `app.py`, `pipeline.py`, `monitor.py`, `evaluate.py`, `logbook.py`, `check.py`, `main.py` and `env.py` come from the course template and were adapted; `vision.py`, `component2.py`, `economics.py` and `tools/` were written for this project by Lucía. We reused ideas from Lucía's assignments: a linear model on tabular data compared against a reference (assignment 1, component 2); choosing a threshold by the cost of being wrong rather than by accuracy (assignment 2, the 9.3% threshold); and evaluating with hand-written cases by kind, with the system allowed to say "not a panel" or "a person will check" instead of guessing (assignment 3).
 
 ## Data
 
-**Component 1 (Gemini vision).** It is not trained: it receives a photo and returns a structured description (soiled or clean, number of spots, share of the panel covered, how the dirt is spread, and whether the image shows a solar panel).
+**Component 1** is not trained: it receives a photo and returns a structured description.
 
-**Component 2 (loss model).** It is trained on 1,000 photos from DeepSolarEye (Mehta et al., WACV 2018, licence CC BY-NC-SA, https://deep-solar-eye.github.io). Each photo comes with its measured power loss and the irradiance and time of the shot. Gemini described all 1,000 photos, and those descriptions plus the context are the model's inputs. We split by day: 768 photos for training and 232 for testing (27–30 June 2017), so the test photos come from days the model never saw. The photos are not in the repository, only the labels (`data/deepsolareye_gemini.csv`); they must be downloaded from the dataset's site. The "non-commercial" licence is fine for this coursework, but a real product would need another dataset or permission.
+**Component 2** is trained on 1,000 photos from DeepSolarEye (Mehta et al., WACV 2018, CC BY-NC-SA, https://deep-solar-eye.github.io). Each photo comes with its measured power loss, irradiance and time. Gemini described all 1,000 photos, and those descriptions plus the context are the model's inputs. We split by day: 768 photos for training and 232 for testing (27–30 June 2017), so test photos come from days the model never saw. Only the labels are in the repository (`data/deepsolareye_gemini.csv`); the photos must be downloaded from the dataset's site. The non-commercial licence is fine for coursework, but a real product would need another dataset or permission.
 
 **Evaluation and monitoring sets.**
-- 45 end-to-end cases (5.9 MB): 23 DeepSolarEye photos and 22 photos from Flickr and Wikimedia Commons under CC BY 2.0, CC BY-SA 2.0 or CC BY-SA 4.0. Author, licence and link for each are in `eval/inputs/cases/SOURCES.md`.
+- 45 end-to-end cases (5.9 MB): 23 DeepSolarEye photos and 22 from Flickr and Wikimedia Commons under CC BY 2.0, CC BY-SA 2.0 or CC BY-SA 4.0, with author, licence and link in `eval/inputs/cases/SOURCES.md`.
 - 40 reference photos (812 KB) for the drift check, all from DeepSolarEye.
-- 15 shifted photos (228 KB) for the drift demo, DeepSolarEye photos altered on purpose (for example, haze).
+- 15 shifted photos (228 KB) for the drift demo: DeepSolarEye photos altered on purpose.
 
- **Personal data.** The images show panels, roofs and landscapes. We reviewed the 22 photos that do not come from DeepSolarEye: none shows an identifiable face or a legible number plate, although two show a shadow or distant, unidentifiable people and vehicles. The logger stores only the image's size and type (for example "image 1024x768 px, jpg"), together with the outputs, versions, time, cost and the user's thumbs up/down; it does not store the photo or its file name. Two things happen outside the log: the photo is sent to Gemini to be analysed, and Gradio keeps a temporary copy for about one hour. We found no personal data in our test inputs or in the logs.
+**Personal data.** The images show panels, roofs and landscapes. We reviewed the 22 non-DeepSolarEye photos: none shows an identifiable face or a legible number plate (two show distant, unidentifiable people or vehicles). The log stores only the image's size and type, never the photo or its file name. Two things happen outside the log: the photo is sent to Gemini to be analysed, and Gradio keeps a temporary copy that is deleted after one hour. We found no personal data in our inputs or logs.
 
 ## Evaluation
 
 ### Components
 
-**Component 1 – Vision (Gemini).**
-- Metric: accuracy, precision and recall of the "soiled" label against the real power
-  loss measured in DeepSolarEye (a photo truly needs cleaning if its loss is above 9.3%)
-- Test data: 1,000 DeepSolarEye photos, one Gemini call per photo at temperature 0
-- Result: accuracy 71.4%, precision 0.73, recall 0.81
-  (source: models/component1_report.json)
+**Component 1 – Gemini.** Metric: accuracy, precision and recall of the "soiled" label against the measured loss (a panel truly needs cleaning above 9.3%), on 1,000 DeepSolarEye photos with one call per photo at temperature 0. Result: **accuracy 71.4%, precision 0.73, recall 0.81** (`models/component1_report.json`).
 
 |  | Gemini: not soiled | Gemini: soiled |
 |---|---|---|
 | Real loss < 9.3% (409 photos) | 236 ✅ | 173 ❌ |
 | Real loss > 9.3% (591 photos) | 113 ❌ | 478 ✅ |
 
-Gemini finds 81% of the panels that really need cleaning, and the dirtier the panel,
-the better it detects it: it says "soiled" for 40% of photos with 0–5% loss, but for
-90% of those with 50–100% loss. Its main weakness is the opposite error: it calls
-42% of nearly clean panels (173 of 409) soiled. This is the same failure we see in
-the end-to-end evaluation, where 11 of the 15 errors are nearly clean panels that the
-app wants to clean. Note that this evaluation uses a single call per photo, while the
-app makes three and uses their agreement to send unsure cases to a person.
+The dirtier the panel, the better Gemini detects it: it says "soiled" for 40% of photos with 0–5% loss and 90% of those with 50–100%. Its main weakness is calling 42% of nearly clean panels (173 of 409) soiled, the same failure we see end to end.
 
-**Component 2 – Power-loss regression (ridge).**
-- Metric: mean absolute error (MAE), in percentage points of power loss
-- Test data: 232 photos from 4 held-out days, trained on 768 (see Data)
-- Result: MAE 17.4 pts (source: models/component2_report.json)
+**Component 2 – ridge regression.** Metric: mean absolute error (MAE) in points of % loss, on 232 photos from 4 held-out days (`models/component2_report.json`).
 
 | Features | MAE (pts) | Decision accuracy |
 |---|---|---|
@@ -120,31 +80,16 @@ app makes three and uses their agreement to send unsure cases to a person.
 | Gemini only | 18.2 | 51.7% |
 | **Gemini + context (selected)** | **17.4** | **61.6%** |
 
-Without Gemini's description, the regression barely beats predicting the average loss
-(26.0 vs 27.2 pts). With it, the error drops by about a third. The first component is
-what gives the second one its information.
-
-We chose ridge over random forest (test MAE 16.3) because the choice was made on
-cross-validation by day, where ridge had the best decision accuracy (0.69 vs 0.66),
-not on the test set. It is also simpler to explain.
-
-Two limitations remain. First, 80% of the errors are below 25.7 pts, which is why the
-app shows a range and not a single number. Second, the learning curve is flat after
-about 100 photos, so more training data would not help: the limit is what Gemini
-describes. On the 4 test days, the model makes more correct decisions than "always
-clean" (61.6% vs 51.7%) but does not lose less money (regret €0.028 vs €0.026 per m²).
-On cross-validation it does (€0.018 vs €0.021).
+Without Gemini's description the regression barely beats the mean; with it the error drops by about a third, so the first component is what gives the second its information. 80% of the errors are below 25.7 points, which is why the app shows a range, and the learning curve is flat after about 100 photos: more data would not help, the limit is what Gemini describes. On the test days the model makes more correct decisions than "always clean" (61.6% vs 51.7%) but does not lose less money (regret €0.028 vs €0.026 per m²); in cross-validation it does (€0.018 vs €0.021).
 
 ### End to end
 
-*How you wrote `eval/cases.csv` (counts by kind, two examples). Results against the baseline. Where the output is free text: the judge's rubric and your agreement with it on your own labels.*
+We wrote 45 cases in `eval/cases.csv`: 17 normal, 18 hard, 5 review and 5 out of scope. Each has the expected action from the app's fixed list.
 
-We wrote 45 cases in `eval/cases.csv`: 17 normal, 18 hard, 5 review and 5 out of scope. Each case has the action we expect, from the app's fixed list (`no_action`, `clean`, `wait`, `check_shade`, `technician`, `out_of_scope`).
+- **23 DeepSolarEye photos** from the test days. The expected action comes from the measured loss, not our opinion: `clean` above 9.3%, `wait` below. Clean panels are normal cases; borderline losses, low light and dusk are hard.
+- **22 licensed photos from other sources.** We set the expected action by looking at each photo: damage goes to `technician` and must be reviewed, shade to `check_shade`, and look-alikes (a solar water heater, a glass facade, a greenhouse) are `out_of_scope`. Real-world panels are marked hard because they come from other cameras and the drift check flags them.
 
-- **23 DeepSolarEye photos** from the test days, which the model never saw in training. Here the expected action comes from the measured loss, not from our opinion: `clean` above 9.3%, `wait` below. Clean panels are normal cases. Borderline losses, low light and dusk are hard cases.
-- **22 licensed photos from other sources** (`eval/inputs/cases/SOURCES.md`). We set the expected action by looking at each photo: damage goes to `technician` and must be sent to review, shade goes to `check_shade`, and things that look like panels (a solar water heater, a glass facade, a greenhouse) are `out_of_scope`. The real-world clean or dirty panels are marked hard, because they come from other cameras and the drift check flags them.
-
-Two examples: **c24**, a panel with shattered glass, expected `technician` with review, and the app got it right. **c01**, a clean DeepSolarEye panel with a 3.6% measured loss, expected `wait`, but the app said `clean`.
+Two examples: **c24**, shattered glass, expected `technician` with review, and the app got it right. **c01**, a clean DeepSolarEye panel with a 3.6% loss, expected `wait`, but the app said `clean`.
 
 | Kind | Cases | Product | Baseline: wait | Always clean |
 |---|---|---|---|---|
@@ -154,7 +99,7 @@ Two examples: **c24**, a panel with shattered glass, expected `technician` with 
 | Out of scope | 5 | 4 | 0 | 0 |
 | **Total** | **45** | **30 (67%)** | **19 (42%)** | **14 (31%)** |
 
-The product beats today's practice mainly on the cases a calendar cannot see: damage (5 of 5) and photos that are not panels (4 of 5). It also never missed a panel that needed cleaning (14 of 14). On normal cases it only ties the baseline, because it orders cleanings for nearly clean panels (see Failures). The outputs are actions, not free text, so they are compared directly with the expected action, and no LLM judge is needed. `no_action` and `wait` count as the same decision, because both mean "do not clean now".
+The product beats today's practice mainly where a calendar is blind: damage (5 of 5) and photos that are not panels (4 of 5). It never missed a panel that needed cleaning (14 of 14). On normal cases it only ties the baseline, because it orders cleanings for nearly clean panels. Outputs are actions, not free text, so they are compared directly and no LLM judge is needed; `no_action` and `wait` count as the same decision.
 
 ### Cost and latency
 
@@ -164,32 +109,13 @@ The product beats today's practice mainly on the cases a calendar cannot see: da
 | 2 – Ridge | 0 | ~0 | ~0.001 |
 | **Total** | **~4,100** | **0.00136** | **median 13.5 (evaluation)** |
 
-Monthly cost at the business-case volume: 500 photos/day (about 15,000 per month)
-× €0.00136 = about €0.68 per day, **around €20 per month**.
+At the business-case volume of 500 photos a day, that is about €0.68 a day, **around €20 a month**, negligible next to the decision it supports: for a panel losing 25%, cleaning gains about €0.15 per m² before the next scheduled cleaning.
 
-Almost all the cost and time come from Gemini. We call it three times per photo: once
-at temperature 0 for the main answer and twice at 0.8, so that disagreement between the
-answers tells us when Gemini is unsure. Those cases go to a person. The ridge model runs
-on our server at practically no cost; only the first request takes ~1.7 s to load it.
-
-Gemini needs about 3.3 s, but the median in the evaluation was 13.5 s (maximum 58 s).
-The evaluation ran locally, not on Render, so the gap comes from Gemini's free tier:
-when requests come too fast it answers 429 (too many requests), and our code waits 5,
-10 or 20 s before retrying (`vision.py`). Separately, the live app on Render's free plan
-sleeps when idle, and the first request after a pause takes about 50 s to wake it up.
-For a maintenance manager who
-checks panels a few times a day, this is acceptable. For real-time use, a paid plan
-would be needed.
-
-About €20 a month is negligible next to the decision it supports: for a panel losing 25%,
-cleaning gains about €0.15 per m² before the next scheduled cleaning (`economics.py`),
-many times the cost of the photo.
-To make the app faster and cheaper we could call Gemini once instead of three times,
-but we would lose the confidence measure that decides which cases a person reviews.
+Almost all the cost and time come from Gemini. It needs about 3.3 s, but the evaluation's median was 13.5 s (maximum 58 s). The evaluation ran locally, so the gap comes from Gemini's free tier: requests sent too fast get a 429 (too many requests) and our code retries after 5, 10 or 20 s. Separately, the app on Render's free plan sleeps when idle, and the first request after a pause takes about 50 s. That is acceptable for a manager who checks panels a few times a day. One Gemini call instead of three would be faster and cheaper, but we would lose the confidence measure that decides which cases a person reviews.
 
 ## Operations
 
-**What we log.** Every request is one record (`logbook.py`), stored in a Postgres database on Render (the app's disk is wiped on every restart) and in `logs/` when run locally:
+**What we log.** Every request is one record (`logbook.py`) in a Postgres database on Render (the app's disk is wiped on every restart), or in `logs/` locally:
 
 | Field | Content |
 |---|---|
@@ -201,13 +127,11 @@ but we would lose the confidence measure that decides which cases a person revie
 | `review`, `latency_s`, `tokens`, `cost_eur` | Review flag, seconds, Gemini tokens, euros |
 | feedback | Request id, time and +1 / −1 |
 
-No personal data is logged. Two caveats: the photo is sent to the Gemini API to be analysed, and Gradio keeps a temporary copy of uploaded photos on the server that is deleted after one hour.
+**Quality signals** (Monitoring tab, per hour): share sent to review, share of 👎, mean Gemini agreement, share with Gemini unavailable, and share of "clean it" decisions.
 
-**Quality signals over time** (Monitoring tab, per hour): share sent to review, share of 👎 among rated requests, mean Gemini agreement, share of requests where Gemini was unavailable, and share of "clean it" decisions.
+**Drift check.** The reference set is 40 normal DeepSolarEye photos spread over all days (`eval/reference.csv`). Over the last 100 requests (silent with fewer than 20), the app computes each feature's PSI against the reference, with 5 quantile bins and Laplace smoothing (+1 photo per bin). An alert fires when a PSI is above **0.25**, the usual level for a significant shift, **and** above twice the PSI expected by chance for those sample sizes, (bins − 1)·(1/n_ref + 1/n_live). With small samples chance alone gives about 0.3, so this second rule is what keeps false alarms down: on 200 random batches of 20 normal photos, the alert fired 3% of the time. We accept a slower alert in exchange, because missing a shift matters: calima, darker photos or a switch to drone cameras would change what Gemini sees, and our evaluation would no longer hold.
 
-**Drift check.** The reference set is 40 normal DeepSolarEye photos spread over all days (`eval/reference.csv`). For the last 100 requests (silent with fewer than 20), the app computes the PSI of each feature against the reference, with 5 quantile bins and Laplace smoothing (+1 photo per bin). An alert fires when a feature's PSI is above **0.25 and** above twice the PSI expected by chance for those sample sizes, (bins − 1)·(1/n_ref + 1/n_live), which is already about 0.3 with 40 and 20 photos. On 200 random batches of 20 normal photos, the alert fired 3% of the time.
-
-**Drift demo** (`main.py drift-demo`). 15 DeepSolarEye photos changed on purpose, 5 of each: darker (`dark`, dusk or a worse camera), blended with dusty orange (`calima`, Saharan haze) and low contrast (`flat`, fog or a dirty lens). PSI per feature:
+**Drift demo** (`main.py drift-demo`). 15 DeepSolarEye photos changed on purpose, 5 of each: darker (dusk or a worse camera), blended with dusty orange (calima) and low contrast (fog or a dirty lens).
 
 | Feature | Normal cases (17) | Shifted (15) |
 |---|---|---|
@@ -220,21 +144,15 @@ No personal data is logged. Two caveats: the photo is sent to the Gemini API to 
 | agreement (Gemini) | 0.000 | 0.146 |
 | threshold | 0.671 (0.676 for agreement) | 0.733 (0.738 for agreement) |
 
-The alert stays quiet on normal cases and fires on the shifted ones (3 features). Gemini's agreement barely moves: on altered photos Gemini stays just as sure of itself, so its confidence alone would not reveal the shift; the image features do.
-
 ![Output of main.py drift-demo: quiet on normal inputs, alert on shifted ones](docs/drift_alert.png)
 
-**👎 alert.** Fires when more than 40% of the last 20+ rated requests are 👎.
+The alert stays quiet on normal cases and fires on the shifted ones. Gemini's agreement barely moves, so its confidence alone would not reveal the shift; the image features do. Two limits: on normal cases `contrast` came close (0.648 vs 0.671), because those 17 photos come only from the test days and show fewer lighting conditions than the reference; and each shift on its own (5 photos) did not fire the alert, so small or early changes go unnoticed until enough photos arrive.
 
-**Why this drift threshold.** PSI 0.25 is the usual level for a significant shift. With small samples, however, PSI is high by chance alone: with 40 reference and 20 live photos, chance already gives about 0.3. Requiring twice that value as well keeps false alarms at about 3%. We accept that trade-off because in a solar plant a missed shift matters: calima, darker photos or a switch from fixed cameras to drones would change what Gemini sees, and the evaluation results would no longer hold. The cost is that the alert needs enough photos before it can fire, so it reacts with some delay.
-
-**What the demo tells us.** On normal cases, `contrast` reached 0.648 against a threshold of 0.671: no alert, but close. All 17 normal cases are DeepSolarEye photos from the test days (27–30 June, 9 of them from 27 June), while the reference covers 13–30 June, so they show fewer lighting conditions than the reference. A system that runs this close to its threshold could raise false alarms, so we will watch it. Each type of shift on its own (5 photos) did not fire the alert; the 15 together did. The alert detects a clear shift, but small or early changes go unnoticed until enough photos arrive.
-
-**Why 40% 👎.** The product was wrong in about a third of the evaluation cases (67% correct). An alert at 40% does not react to the normal error rate, only to feedback clearly worse than what we measured in testing. It needs at least 20 rated requests. The threshold is provisional and should be tuned in the pilot: lower would catch problems earlier but with more noise, higher would react later. Many users will not rate answers, so the alert may never have enough data; that is why we read it together with the other signals (share sent to review, Gemini's agreement and drift).
+**👎 alert.** Fires when more than 40% of the last 20+ rated requests are 👎. The product was wrong in about a third of the evaluation cases, so 40% reacts only to feedback clearly worse than in testing. It is provisional and should be tuned in the pilot, and since many users will not rate answers, we read it together with the other signals.
 
 ## Failures
 
-The product failed on 15 of the 45 cases (67% correct). All 15 start at component 1 (Gemini), and for most of them component 2 then amplifies the error.
+The product failed on 15 of the 45 cases. All 15 start at component 1 (Gemini), and in most of them component 2 then amplifies the error.
 
 | Cause | Cases | Count |
 |---|---|---|
@@ -243,56 +161,33 @@ The product failed on 15 of the 45 cases (67% correct). All 15 start at componen
 | Polycrystalline texture mistaken for stains | c38 | 1 |
 | Solar water heater taken for a panel | c29 | 1 |
 
-The largest group is 11 of 15 failures (73%). In those cases the true loss is below the 9.3% at which cleaning pays off (0.3% to 9.2% on the DeepSolarEye photos), so the correct action was to wait. Gemini reports only 1–5% of the panel covered, yet it still labels the panel "soiled", and the loss model turns that label into an estimated loss of 17–31%. The result is an unnecessary cleaning order. This costs money but does not put the panels at risk, and one of the 11 (c23) was sent to a person because Gemini's three votes disagreed.
+The largest group is 11 of 15 failures. Their true loss is below 9.3% (0.3% to 9.2% on the DeepSolarEye photos), so the right action was to wait. Gemini reports only 1–5% of the panel covered, yet labels it "soiled", and the loss model turns that into an estimated loss of 17–31%: an unnecessary cleaning order. This costs money but does not put panels at risk. Only one of the 11 (c23) went to a person, because Gemini's votes disagreed.
 
-**What we would fix first:** this group. We would add examples of nearly clean panels to Gemini's prompt, add a "lightly soiled" level, and send a case to a person when Gemini says "soiled" but reports 5% coverage or less. Fixing only these 11 would lift accuracy from 67% to up to 91% (41 of 45). The shadow and out-of-scope failures are only 4 cases, so we would handle them later, with a clearer definition of "shaded" in Gemini's prompt (the label exists, but Gemini chose "soiled") and a stricter check that the image is a PV panel.
+**What we would fix first:** this group. We would add examples of nearly clean panels to Gemini's prompt, add a "lightly soiled" level, and send a case to a person when Gemini says "soiled" with 5% coverage or less. Fixing these 11 would lift accuracy from 67% to up to 91%. The other 4 can wait: they need a clearer definition of "shaded" in the prompt (the label exists, but Gemini chose "soiled") and a stricter check that the image is a PV panel.
 
 ## Decision
-1. Which cases go to a person
 
-Visible damage, always.
-Cases where Gemini's three answers have no majority.
-An "unknown" answer.
-Gemini not available.
+**Which cases go to a person.** Visible damage, always; cases where Gemini's three answers have no majority; an "unknown" answer; and Gemini unavailable.
 
-2. How many cases per day
+**How many a day.** Of the 45 test cases, 7 go to a person (16%): the 5 damage cases plus c23 and c34. Without the damage cases, chosen on purpose, it is 2 of 40 (5%). Assuming 500 photos a day (a sample of areas across the plants), that is about 25 cases a day, plus damage.
 
-Of the 45 test cases, 7 go to a person (16%): the 5 damage cases, plus c23 and c34. Without the 5 damage cases, which were chosen on purpose, it's 2 out of 40 (5%).
-We assume 500 photos a day, a sample of areas across the plants. This is an assumption and can be changed.
-5% is about 25 cases a day, not counting damage.
+**Evidence in favour.** Right in 30 of 45 cases (67%) versus 42% and 31%; damage 5 of 5 and panels that needed cleaning 14 of 14; about €0.00136 and 13.5 s per photo.
 
-3. Evidence in favor
+**Evidence against.** 11 of the 15 mistakes are nearly clean panels sent to cleaning, and only one reached a person, because Gemini is confidently wrong. In the 33 dirt cases the advantage over "wait" is small (64% vs 58%). In euros per m², on the test days the model does not beat "always clean" (0.0282 vs 0.0259), although it does in cross-validation (0.0182 vs 0.0208). The dataset photos are small (192×192 pixels) and non-commercial; real plant and drone photos would look different.
 
-It's right in 30 of 45 cases (67%), versus 42% and 31%.
-Damage 5/5, and panels that needed cleaning 14/14.
-It costs about €0.00136 per photo and takes about 13.5 seconds.
-
-4. Evidence against and limits
-
-11 of the 15 mistakes are nearly clean panels that the app tells you to clean. That costs money but doesn't put the panels at risk.
-Only 1 of those 15 mistakes reached a person, because Gemini is confidently wrong.
-In the 33 dirt cases, the advantage over "wait" is small (64% vs 58%).
-In euros per m², on the test days the model doesn't beat "always clean" (0.0282 vs 0.0259). In cross-validation it does (0.0182 vs 0.0208).
-The dataset photos are small (192×192 pixels) and have a non-commercial license. A real plant and drone photos would look different.
-
-5. Verdict: go with conditions
-
-Extra review: if Gemini says "dirty" and 5% or less of the surface is covered, it goes to a person.
-In the 1,000 labeled photos, that would be 34%. In 42% of those cases, waiting was the correct choice.
-With 500 photos a day, that could be up to about 170 cases. This is a rough maximum, because those photos aren't real traffic.
-Improve Gemini: add examples of nearly clean panels to the prompt, and add a "slightly dirty" level.
-Pilot at one plant: a person decides in parallel, and the results are compared.
-Move to a full "go": if in the pilot there are fewer unnecessary cleanings than with "wait" and no damage slips through.
+**Verdict: go with conditions.**
+- Extra review: if Gemini says "soiled" with 5% coverage or less, a person decides. In the 1,000 labelled photos that is 34%, and in 42% of those waiting was right. At 500 photos a day this could mean up to about 170 cases, a rough maximum because those photos are not real traffic.
+- Improve Gemini: examples of nearly clean panels in the prompt and a "slightly dirty" level.
+- Pilot at one plant, with a person deciding in parallel. Full "go" if the pilot shows fewer unnecessary cleanings than "wait" and no missed damage.
 
 ## How to run it
 
-- **Key:** only `GEMINI_API_KEY` (free at <https://aistudio.google.com/apikey>). Roboflow and Hugging Face are not used. Copy `.env.example` to `.env` and paste the key.
-- **No download needed to run the app:** the trained model (`models/component2.joblib`), the 45 evaluation photos, the reference and the shifted photos are in the repo. The 1,000 DeepSolarEye training photos are only needed to retrain component 2 (`tools/train_component2.py`), from <https://deep-solar-eye.github.io>.
+- **Key:** only `GEMINI_API_KEY` (free at <https://aistudio.google.com/apikey>). Copy `.env.example` to `.env` and paste the key.
+- **No download needed:** the trained model (`models/component2.joblib`), the 45 evaluation photos, and the reference and shifted photos are in the repo. The 1,000 DeepSolarEye training photos are only needed to retrain component 2 (`tools/train_component2.py`).
 - **Run:** `uv sync`, then `uv run python app.py` (<http://127.0.0.1:7860>) and `uv run python check.py`.
-- **Time and quota:** each photo makes 3 Gemini calls. Gemini needs about 3.3 s, but on the free tier requests sent too fast get a 429 and are retried after 5, 10 or 20 s, so the evaluation's median was 13.5 s (see Cost and latency). `main.py evaluate` (45 cases) makes about 135 calls and `main.py reference` 120, which counts against the free tier's daily limit. If the key is missing or the quota is used up, the app does not crash: it answers "Component 1 unavailable" and sends the case to a person.
+- **Time and quota:** each photo makes 3 Gemini calls; `main.py evaluate` (45 cases) makes about 135 and `main.py reference` 120, which count against the free tier's daily limit. Without a key or quota the app does not crash: it answers "Component 1 unavailable" and sends the case to a person.
 - **Online app:** it sleeps after 15 minutes without visits; the first request after that takes about 50 s.
 - **Behind a corporate network or antivirus**, `uv sync` may fail with `invalid peer certificate`; `uv sync --system-certs` fixes it.
 
 ## AI use
 
-*What you used and how, or "none".*
