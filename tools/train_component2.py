@@ -11,7 +11,7 @@ Train and evaluate component 2 (team decisions 3, 5 and 6).
 - Several models, each WITH and WITHOUT component 1's features: if Gemini's
   features do not lower the error, the chain adds nothing.
 - Metrics: MAE in points of % loss, and how often the clean / don't-clean call is
-  right at a loss threshold (PLACEHOLDER: the team sets it from the € formula).
+  right at a loss threshold (9.3%, from the € formula in economics.py).
 - Learning curve: test MAE as the training set grows (do more photos help?).
 
 Writes models/component2.joblib (the model the app uses) and

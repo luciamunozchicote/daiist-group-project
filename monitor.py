@@ -1,10 +1,9 @@
 """
 Monitoring: quality signals over time, drift against the reference set, alerts.
 
-PSI_ALERT was decided by the team (2026-11-23); THUMBS_DOWN_ALERT is still a
-PLACEHOLDER. Choose yours and justify them in
-REPORT.md: how many false alarms on normal inputs you accept, and how big a
-shift has to be before it matters for your product.
+Thresholds decided by the team and justified in REPORT.md (Operations):
+PSI_ALERT 0.25 plus the chance-level rule, and THUMBS_DOWN_ALERT 40% (provisional,
+to be tuned in the pilot).
 """
 
 from pathlib import Path
@@ -21,7 +20,7 @@ PSI_ALERT = 0.25       # Team decision (2026-11-23), usual "significant shift" l
 NOISE_MULTIPLE = 2     # ...and this many times the PSI expected by chance (psi_noise)
 WINDOW = 100           # the drift check looks at the last WINDOW requests...
 MIN_WINDOW = 20        # ...and stays silent with fewer than this
-THUMBS_DOWN_ALERT = 0.4  # PLACEHOLDER: alert when this share of rated requests is 👎
+THUMBS_DOWN_ALERT = 0.4  # team decision, provisional (REPORT.md, Operations): alert when this share of rated requests is 👎
 
 
 def _bin(values: np.ndarray, reference: np.ndarray, bins: int) -> np.ndarray:

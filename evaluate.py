@@ -3,7 +3,7 @@ Evaluation. `uv run python main.py evaluate` (this file, or evaluate.ipynb)
 
 The template only runs every case in eval/cases.csv through the pipeline and
 reports what does not depend on your product: review rate per kind, latency and
-cost. The TODOs are yours:
+cost. What we added:
 
   1. each component on its own, with the metric that fits it;
   2. `is_correct()` for the end-to-end result, and the comparison with the baseline;

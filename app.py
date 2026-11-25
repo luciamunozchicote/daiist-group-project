@@ -22,7 +22,7 @@ env.load_env()
 LOG_TARGET = logbook.start()
 
 TITLE = "Solar Triage"
-DESCRIPTION = "For maintenance managers of solar plants: upload a photo of a panel and get what is wrong (dirt, shade, damage), the estimated power loss and what to do."  # TODO (team): final wording
+DESCRIPTION = "For maintenance managers of solar plants: upload a photo of a panel and get what is wrong (dirt, shade, damage), the estimated power loss and what to do."
 
 
 def serve(raw_input: str, irradiance: float | None = None, hour: float | None = None) -> dict:
