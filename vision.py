@@ -28,9 +28,8 @@ VOTE_TEMPERATURE = 0.8
 
 # Price per million tokens in EUR, for the cost column. The free tier costs 0 €,
 # but we report what the product would cost on the paid plan:
-# $0.30 input / $2.50 output (thinking included) per 1M tokens, Google DeepMind
-# model page https://deepmind.google/models/gemini/flash-lite/ (checked 2026-11-20),
-# at 0.86 €/$. TODO (team): confirm on https://ai.google.dev/pricing before submitting.
+# $0.30 input / $2.50 output (thinking included) per 1M tokens, paid tier,
+# https://ai.google.dev/gemini-api/docs/pricing (checked 2026-11-25), at 0.86 €/$.
 USD_TO_EUR = 0.86
 EUR_PER_M_INPUT_TOKENS = 0.30 * USD_TO_EUR
 EUR_PER_M_OUTPUT_TOKENS = 2.50 * USD_TO_EUR

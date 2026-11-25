@@ -56,7 +56,7 @@ Component 2 is a regression because Gemini cannot say *how much* energy a panel 
 - 40 reference photos (812 KB) for the drift check, all from DeepSolarEye.
 - 15 shifted photos (228 KB) for the drift demo: DeepSolarEye photos altered on purpose.
 
-**Personal data.** The images show panels, roofs and landscapes. We reviewed the 22 non-DeepSolarEye photos: none shows an identifiable face or a legible number plate (two show distant, unidentifiable people or vehicles). The log stores only the image's size and type, never the photo or its file name. Two things happen outside the log: the photo is sent to Gemini to be analysed, and Gradio keeps a temporary copy that is deleted after one hour. We found no personal data in our inputs or logs.
+**Personal data.** The images show panels, roofs and landscapes. We reviewed the 22 non-DeepSolarEye photos: none shows an identifiable face or a legible number plate (two show distant, unidentifiable people or vehicles). The log stores only the image's size and type, never the photo or its file name. Two things happen outside the log: the photo is sent to Gemini to be analysed (on the free tier Google may use it to improve its products, on the paid tier it does not), and Gradio keeps a temporary copy that is deleted after one hour. We found no personal data in our inputs or logs.
 
 ## Evaluation
 
