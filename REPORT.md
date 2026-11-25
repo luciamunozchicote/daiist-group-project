@@ -1,8 +1,8 @@
 # Group Assignment Report
 
 - **Team** (Blackboard group name):
-- **Section**: [BBADBA 5A | BBADBA 5B | PPLEDBA 5A]
-- **App URL** (on Render):
+- **Section**: BBADBA 5B
+- **App URL** (on Render): https://solar-triage.onrender.com
 - **Final commit** (tag `final`):
 
 *At most about 3,000 words, tables excluded. Members and who did what go in CONTRIBUTIONS.md.*
@@ -139,6 +139,23 @@ On cross-validation it does (€0.018 vs €0.021).
 
 *How you wrote `eval/cases.csv` (counts by kind, two examples). Results against the baseline. Where the output is free text: the judge's rubric and your agreement with it on your own labels.*
 
+We wrote 45 cases in `eval/cases.csv`: 17 normal, 18 hard, 5 review and 5 out of scope. Each case has the action we expect, from the app's fixed list (`no_action`, `clean`, `wait`, `check_shade`, `technician`, `out_of_scope`).
+
+- **23 DeepSolarEye photos** from the test days, which the model never saw in training. Here the expected action comes from the measured loss, not from our opinion: `clean` above 9.3%, `wait` below. Clean panels are normal cases. Borderline losses, low light and dusk are hard cases.
+- **22 licensed photos from other sources** (`eval/inputs/cases/SOURCES.md`). We set the expected action by looking at each photo: damage goes to `technician` and must be sent to review, shade goes to `check_shade`, and things that look like panels (a solar water heater, a glass facade, a greenhouse) are `out_of_scope`. The real-world clean or dirty panels are marked hard, because they come from other cameras and the drift check flags them.
+
+Two examples: **c24**, a panel with shattered glass, expected `technician` with review, and the app got it right. **c01**, a clean DeepSolarEye panel with a 3.6% measured loss, expected `wait`, but the app said `clean`.
+
+| Kind | Cases | Product | Baseline: wait | Always clean |
+|---|---|---|---|---|
+| Normal | 17 | 9 | 9 | 8 |
+| Hard | 18 | 12 | 10 | 6 |
+| Review | 5 | 5 | 0 | 0 |
+| Out of scope | 5 | 4 | 0 | 0 |
+| **Total** | **45** | **30 (67%)** | **19 (42%)** | **14 (31%)** |
+
+The product beats today's practice mainly on the cases a calendar cannot see: damage (5 of 5) and photos that are not panels (4 of 5). It also never missed a panel that needed cleaning (14 of 14). On normal cases it only ties the baseline, because it orders cleanings for nearly clean panels (see Failures). The outputs are actions, not free text, so they are compared directly with the expected action, and no LLM judge is needed. `no_action` and `wait` count as the same decision, because both mean "do not clean now".
+
 ### Cost and latency
 
 | Component | Tokens | € per photo | Seconds |
@@ -266,10 +283,6 @@ With 500 photos a day, that could be up to about 170 cases. This is a rough maxi
 Improve Gemini: add examples of nearly clean panels to the prompt, and add a "slightly dirty" level.
 Pilot at one plant: a person decides in parallel, and the results are compared.
 Move to a full "go": if in the pilot there are fewer unnecessary cleanings than with "wait" and no damage slips through.
-
-## Bonus: reinforcement learning
-
-*Delete this section if you did not do it. The loop (feedback → reward → update → behaviour), the reward and what it could reward by accident, the exploration strategy and its cost, the evidence from real logs (and which part was simulated), the risks.*
 
 ## How to run it
 
