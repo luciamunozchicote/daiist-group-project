@@ -25,14 +25,14 @@
 | 19–20 Nov | Lucía | Component 2: trained and compared the loss regressions (component2.py, tools/train_component2.py) |
 | 20 Nov | Lucía | € decision threshold (economics.py), app actions, drift sets, monitoring signals and evaluation code |
 | 23 Nov | Lucía | Wrote the 45 test cases, chose and licensed the photos (eval/cases.csv, SOURCES.md) |
-| 23 Nov | Lucía | Took the team decisions: baseline, days between cleanings, review and drift thresholds, no RL bonus |
+| 23 Nov | Lucía, Louis | Took the team decisions: baseline, days between cleanings, review and drift thresholds, no RL bonus |
 | 24 Nov | Lucía | Ran the full evaluation, drift demo and checks; timing per component; privacy fixes in the logs |
 | 24 Nov | María | Business case and Decision sections; added herself to contributions |
 | 24 Nov | Celia | Data and Failures sections |
 | 24 Nov | Alejandra | Evaluation: components, and Cost and latency |
 | 24 Nov | Diana | Architecture, Operations and How to run it; drift alert screenshot |
-| 25 Nov | Lucía | End to end section (draft written with AI help, see AI use); fact-checked and corrected report numbers |
+| 25 Nov | Louis, Lucía | End to end section (draft written with AI help, see AI use); fact-checked and corrected report numbers |
 | TODO | Louis | Presentation slides and live demo |
-| TODO | María | AI use section; final edit of the report to ~3,000 words |
+| TODO | María, Louis | AI use section; final edit of the report to ~3,000 words |
 
 AI assistance (Claude) was used for the code and for checking the report's numbers; see "AI use" in REPORT.md.
